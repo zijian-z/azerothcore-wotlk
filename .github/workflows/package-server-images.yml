@@ -3,6 +3,10 @@ name: package-server-images
 on:
   workflow_dispatch:
     inputs:
+      source_ref:
+        description: Git ref to package
+        required: false
+        default: Playerbot
       image_tag:
         description: Optional image tag. If empty, acore.json version is used.
         required: false
@@ -35,6 +39,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - name: Checkout Playerbot module
+        shell: bash
+        run: |
+          rm -rf modules/mod-playerbots
+          git clone --depth 1 --branch master --single-branch \
+            https://github.com/mod-playerbots/mod-playerbots.git \
+            modules/mod-playerbots
+
+          test -f modules/mod-playerbots/conf/playerbots.conf.dist
+          test -d modules/mod-playerbots/data/sql/playerbots
+          test -d modules/mod-playerbots/data/sql/world
+          test -d modules/mod-playerbots/data/sql/characters
 
       - name: Resolve image names and tags
         id: meta

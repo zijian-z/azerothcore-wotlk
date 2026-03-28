@@ -19,6 +19,7 @@ AC_DB_PASSWORD="${AC_DB_PASSWORD:-acore}"
 AC_AUTH_DATABASE="${AC_AUTH_DATABASE:-acore_auth}"
 AC_WORLD_DATABASE="${AC_WORLD_DATABASE:-acore_world}"
 AC_CHARACTER_DATABASE="${AC_CHARACTER_DATABASE:-acore_characters}"
+AC_PLAYERBOTS_DATABASE="${AC_PLAYERBOTS_DATABASE:-acore_playerbots}"
 AC_REALM_ID="${AC_REALM_ID:-1}"
 AC_REALM_NAME="${AC_REALM_NAME:-AzerothCore}"
 AC_REALM_ADDRESS="${AC_REALM_ADDRESS:-127.0.0.1}"
@@ -38,6 +39,10 @@ die() {
 
 ensure_runtime_dirs() {
     mkdir -p "$CONF_DIR" "$MODULE_CONF_DIR" "$LOGS_DIR" "$TEMP_DIR" "$DATA_DIR"
+}
+
+has_playerbots_module() {
+    [[ -d "$AC_ROOT/modules/mod-playerbots" ]] || [[ -f "$MODULE_CONF_DIR/playerbots.conf.dist" ]] || [[ -f "$MODULE_CONF_DIR/playerbots.conf" ]]
 }
 
 copy_default_configs() {
@@ -71,6 +76,19 @@ copy_external_configs() {
             for file in "$source_dir/modules"/*.conf "$source_dir/modules"/*.conf.dist; do
                 cp -f "$file" "$MODULE_CONF_DIR/"
             done
+        fi
+    done
+}
+
+ensure_runtime_module_confs() {
+    local dist_file
+    local conf_file
+
+    for dist_file in "$MODULE_CONF_DIR"/*.conf.dist; do
+        conf_file="${dist_file%.dist}"
+
+        if [[ ! -f "$conf_file" ]]; then
+            cp -f "$dist_file" "$conf_file"
         fi
     done
 }
@@ -113,6 +131,7 @@ prepare_configs() {
     ensure_runtime_dirs
     copy_default_configs
     copy_external_configs
+    ensure_runtime_module_confs
 
     ensure_runtime_conf "authserver"
     ensure_runtime_conf "worldserver"
@@ -133,6 +152,12 @@ prepare_configs() {
     set_config_value "$CONF_DIR/worldserver.conf" "MySQLExecutable" "\"/usr/bin/mysql\""
     set_config_value "$CONF_DIR/worldserver.conf" "Updates.EnableDatabases" "7"
     set_config_value "$CONF_DIR/worldserver.conf" "Updates.AutoSetup" "1"
+
+    if has_playerbots_module; then
+        set_config_value "$MODULE_CONF_DIR/playerbots.conf" "PlayerbotsDatabaseInfo" "\"${AC_DB_HOST};${AC_DB_PORT};${AC_DB_USER};${AC_DB_PASSWORD};${AC_PLAYERBOTS_DATABASE}\""
+        set_config_value "$MODULE_CONF_DIR/playerbots.conf" "Playerbots.Updates.EnableDatabases" "1"
+        set_config_value "$CONF_DIR/worldserver.conf" "Updates.EnableDatabases" "15"
+    fi
 }
 
 data_is_ready() {
@@ -257,11 +282,19 @@ sql_escape() {
 bootstrap_mysql() {
     local db_user
     local db_password
+    local playerbots_sql=""
 
     wait_for_mysql "root"
 
     db_user="$(sql_escape "$AC_DB_USER")"
     db_password="$(sql_escape "$AC_DB_PASSWORD")"
+
+    if has_playerbots_module; then
+        playerbots_sql="
+        CREATE DATABASE IF NOT EXISTS \`${AC_PLAYERBOTS_DATABASE}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+        GRANT ALL PRIVILEGES ON \`${AC_PLAYERBOTS_DATABASE}\`.* TO '${db_user}'@'%' WITH GRANT OPTION;
+        "
+    fi
 
     mysql_command "root" "" "
         CREATE DATABASE IF NOT EXISTS \`${AC_AUTH_DATABASE}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -272,6 +305,7 @@ bootstrap_mysql() {
         GRANT ALL PRIVILEGES ON \`${AC_AUTH_DATABASE}\`.* TO '${db_user}'@'%' WITH GRANT OPTION;
         GRANT ALL PRIVILEGES ON \`${AC_WORLD_DATABASE}\`.* TO '${db_user}'@'%' WITH GRANT OPTION;
         GRANT ALL PRIVILEGES ON \`${AC_CHARACTER_DATABASE}\`.* TO '${db_user}'@'%' WITH GRANT OPTION;
+        ${playerbots_sql}
         FLUSH PRIVILEGES;
     "
 }

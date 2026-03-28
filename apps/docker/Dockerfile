@@ -72,6 +72,7 @@ ENV PATH="/azerothcore/env/dist/bin:${PATH}" \
     AC_AUTH_DATABASE="acore_auth" \
     AC_WORLD_DATABASE="acore_world" \
     AC_CHARACTER_DATABASE="acore_characters" \
+    AC_PLAYERBOTS_DATABASE="acore_playerbots" \
     AC_REALM_ID="1" \
     AC_REALM_NAME="AzerothCore" \
     AC_REALM_ADDRESS="127.0.0.1" \

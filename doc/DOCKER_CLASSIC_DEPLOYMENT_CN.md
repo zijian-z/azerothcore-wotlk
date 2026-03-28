@@ -34,6 +34,12 @@
 - `var/mysql`
   MySQL 数据目录。
 
+可直接一键创建这些目录：
+
+```bash
+mkdir -p env/user/modules env/dist/etc env/dist/data env/dist/logs env/dist/temp var/mysql
+```
+
 建议把外部文件放成下面这个结构：
 
 ```text
@@ -67,12 +73,33 @@ env/user/
 
 1. 打开 GitHub Actions。
 2. 运行 `package-server-images`。
-3. 输入本次部署要使用的 `image_tag`。
-4. 等待两个镜像构建并推送完成。
+3. 保持 `source_ref=Playerbot`，除非你明确要打包其他分支。
+4. 输入本次部署要使用的 `image_tag`。
+5. 等待两个镜像构建并推送完成。
+
+对 fork 仓库，这个工作流直接使用你仓库的 `Playerbot` 分支源码编译，不会重新 clone 原始 `mod-playerbots/azerothcore-wotlk`。额外补的只有模块准备步骤，也就是把 `mod-playerbots` 拉到 `modules/mod-playerbots`：
+
+```bash
+cd modules
+git clone https://github.com/mod-playerbots/mod-playerbots.git --branch=master
+```
+
+因此打包出来的镜像会同时包含：
+
+- `mod-playerbots` 模块源码
+- `modules/mod-playerbots/data/sql/playerbots`
+- `modules/mod-playerbots/data/sql/world`
+- `modules/mod-playerbots/data/sql/characters`
 
 本地部署时，把生成出来的镜像地址写入根目录 `.env` 里的 `WORLD_IMAGE` 和 `AUTH_IMAGE`。
 
-## 3. 准备 `.env`
+## 3. 准备 Compose 文件和 `.env`
+
+部署命令默认使用仓库根目录自带的 [`docker-compose.yml`](../docker-compose.yml)。
+
+- 如果你是直接 `git clone` 本仓库，然后在仓库根目录执行命令，不需要额外生成 compose 文件，`docker compose` 会自动读取这个文件。
+- 如果你不是完整克隆仓库，而是只拷贝部署所需文件到目标机器，至少要把根目录 `docker-compose.yml` 一起带上，然后在该文件所在目录执行 `docker compose pull` / `docker compose up -d`。
+- [`conf/dist/docker-compose.override.yml`](../conf/dist/docker-compose.override.yml) 只是可选示例，不是首次部署的必需文件。
 
 把 [`conf/dist/env.docker`](../conf/dist/env.docker) 复制到仓库根目录 `.env`，至少填写以下字段：
 
@@ -86,6 +113,7 @@ AC_REALM_ADDRESS=your-public-ip-or-domain
 重点说明：
 
 - `AC_DB_PASSWORD` 是唯一必须由用户提供的 AzerothCore 数据库密码。
+- `AC_PLAYERBOTS_DATABASE` 默认是 `acore_playerbots`，通常不需要修改。
 - MySQL `root` 不设置密码。
 - Compose 默认不对宿主机暴露 MySQL 端口，因此 `root` 只在容器网络内可用。
 - 运行镜像使用容器默认 `root` 用户，不再额外创建 `acore` Linux 用户。
@@ -102,7 +130,7 @@ AC_REALM_ADDRESS=your-public-ip-or-domain
 
 ## 4. 首次启动
 
-先准备好外部输入：
+先确认你当前就在仓库根目录，也就是 `docker-compose.yml` 所在目录，然后准备好外部输入：
 
 1. 把 `Data.zip` 放到 `env/user/Data.zip`。
 2. 如有自定义配置，把 `authserver.conf`、`worldserver.conf` 放到 `env/user/`。
@@ -126,10 +154,11 @@ docker compose up -d
    读取外部 `Data.zip`，解压到 `env/dist/data`。
 3. `db-prepare`
    创建 `acore_auth`、`acore_world`、`acore_characters`。
+   如果镜像中包含 `mod-playerbots`，还会创建 `acore_playerbots`。
    创建或更新 `acore@'%'` 用户，并把 `.env` 中的 `AC_DB_PASSWORD` 应用进去。
    这一步只覆盖官方数据库安装流程，不负责 SQL 导入。
 4. `worldserver`
-   在 `AC_DISABLE_INTERACTIVE=1` 下自行执行官方首启 SQL 导入和更新流程。
+   在 `AC_DISABLE_INTERACTIVE=1` 下自行执行官方首启 SQL 导入和更新流程，包括 `mod-playerbots` 自带的 SQL。
 5. `authserver`
    等待 `acore_auth.realmlist` 已经导入完成后再启动，并按 `.env` 自动修正 `realmlist` 地址。
 
