@@ -1,0 +1,120 @@
+name: package-server-images
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional image tag. If empty, acore.json version is used.
+        required: false
+        default: ""
+      platforms:
+        description: Docker platforms to build
+        required: false
+        default: linux/amd64
+      push_images:
+        description: Push images to GHCR
+        required: false
+        type: boolean
+        default: true
+      tag_latest:
+        description: Also publish the latest tag
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  package:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
+      REPOSITORY_NAME: ${{ github.event.repository.name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve image names and tags
+        id: meta
+        shell: bash
+        run: |
+          if [[ -n "${{ inputs.image_tag }}" ]]; then
+            image_tag="${{ inputs.image_tag }}"
+          else
+            image_tag="$(jq -r '.version' acore.json)"
+          fi
+
+          sha_tag="sha-${GITHUB_SHA::12}"
+          world_image="${REGISTRY}/${IMAGE_NAMESPACE}/${REPOSITORY_NAME}-worldserver"
+          auth_image="${REGISTRY}/${IMAGE_NAMESPACE}/${REPOSITORY_NAME}-authserver"
+
+          {
+            echo "image_tag=${image_tag}"
+            echo "sha_tag=${sha_tag}"
+            echo "world_image=${world_image}"
+            echo "auth_image=${auth_image}"
+            echo "world_tags<<EOF"
+            echo "${world_image}:${image_tag}"
+            echo "${world_image}:${sha_tag}"
+            if [[ "${{ inputs.tag_latest }}" == "true" ]]; then
+              echo "${world_image}:latest"
+            fi
+            echo "EOF"
+            echo "auth_tags<<EOF"
+            echo "${auth_image}:${image_tag}"
+            echo "${auth_image}:${sha_tag}"
+            if [[ "${{ inputs.tag_latest }}" == "true" ]]; then
+              echo "${auth_image}:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: ${{ inputs.push_images }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build worldserver image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/docker/Dockerfile
+          target: worldserver
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push_images }}
+          pull: true
+          provenance: false
+          tags: ${{ steps.meta.outputs.world_tags }}
+          cache-from: type=gha,scope=worldserver
+          cache-to: type=gha,mode=max,scope=worldserver
+
+      - name: Build authserver image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/docker/Dockerfile
+          target: authserver
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push_images }}
+          pull: true
+          provenance: false
+          tags: ${{ steps.meta.outputs.auth_tags }}
+          cache-from: type=gha,scope=authserver
+          cache-to: type=gha,mode=max,scope=authserver
+
+      - name: Print image references
+        shell: bash
+        run: |
+          echo "worldserver:"
+          echo "${{ steps.meta.outputs.world_tags }}"
+          echo
+          echo "authserver:"
+          echo "${{ steps.meta.outputs.auth_tags }}"
