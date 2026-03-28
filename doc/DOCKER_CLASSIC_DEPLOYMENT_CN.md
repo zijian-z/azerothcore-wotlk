@@ -197,7 +197,6 @@ docker compose attach worldserver
 ```text
 account create admin StrongPassword123
 account set gm admin 3 -1
-account set addon admin 1
 ```
 
 脱离控制台可用 `Ctrl+P` 然后 `Ctrl+Q`。
