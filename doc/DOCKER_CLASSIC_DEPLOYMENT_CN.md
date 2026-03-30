@@ -74,8 +74,13 @@ env/user/
 1. 打开 GitHub Actions。
 2. 运行 `package-server-images`。
 3. 保持 `source_ref=Playerbot`，除非你明确要打包其他分支。
-4. 输入本次部署要使用的 `image_tag`。
+4. 如果你要发布固定版本 tag，就填写 `image_tag`；如果你要让 GHCR 里以 `latest` 作为主 tag，就勾选 `tag_latest` 并把 `image_tag` 留空。
 5. 等待两个镜像构建并推送完成。
+
+补充说明：
+
+- 当 `image_tag` 留空且 `tag_latest` 没勾选时，工作流会回退到 `acore.json` 里的版本号。
+- 当 `image_tag` 留空且 `tag_latest` 勾选时，工作流只会发布 `latest` 和 `sha-<commit>`，不会再额外挂一个版本号 tag。
 
 对 fork 仓库，这个工作流直接使用你仓库的 `Playerbot` 分支源码编译，不会重新 clone 原始 `mod-playerbots/azerothcore-wotlk`。额外补的只有模块准备步骤，也就是把 `mod-playerbots` 拉到 `modules/mod-playerbots`：
 

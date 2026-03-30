@@ -101,10 +101,6 @@ RUN mkdir -p \
         /azerothcore/external
 
 COPY --from=build /azerothcore/env/dist/etc/ /azerothcore/env/ref/etc/
-COPY --from=build /azerothcore/env/dist/bin/authserver /azerothcore/env/dist/bin/authserver
-COPY --from=build /azerothcore/env/dist/bin/worldserver /azerothcore/env/dist/bin/worldserver
-COPY data /azerothcore/data
-COPY modules /azerothcore/modules
 
 COPY --chmod=755 apps/docker/entrypoint.sh /usr/local/bin/ac-entrypoint.sh
 
@@ -114,6 +110,8 @@ ENTRYPOINT ["/usr/local/bin/ac-entrypoint.sh"]
 
 FROM runtime-base AS authserver
 
+COPY --from=build /azerothcore/env/dist/bin/authserver /azerothcore/env/dist/bin/authserver
+
 LABEL description="AzerothCore authserver runtime image"
 
 ENV ACORE_COMPONENT="authserver"
@@ -121,6 +119,10 @@ ENV ACORE_COMPONENT="authserver"
 CMD ["authserver"]
 
 FROM runtime-base AS worldserver
+
+COPY --from=build /azerothcore/env/dist/bin/worldserver /azerothcore/env/dist/bin/worldserver
+COPY data /azerothcore/data
+COPY modules /azerothcore/modules
 
 LABEL description="AzerothCore worldserver runtime image"
 

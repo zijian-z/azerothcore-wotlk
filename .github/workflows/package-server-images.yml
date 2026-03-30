@@ -8,7 +8,7 @@ on:
         required: false
         default: Playerbot
       image_tag:
-        description: Optional image tag. If empty, acore.json version is used.
+        description: Optional image tag. If empty and latest is unchecked, acore.json version is used.
         required: false
         default: ""
       platforms:
@@ -21,7 +21,7 @@ on:
         type: boolean
         default: true
       tag_latest:
-        description: Also publish the latest tag
+        description: Also publish the latest tag. With an empty image_tag, only latest and sha tags are published.
         required: false
         type: boolean
         default: false
@@ -59,34 +59,52 @@ jobs:
         id: meta
         shell: bash
         run: |
-          if [[ -n "${{ inputs.image_tag }}" ]]; then
-            image_tag="${{ inputs.image_tag }}"
-          else
-            image_tag="$(jq -r '.version' acore.json)"
-          fi
-
+          requested_tag="${{ inputs.image_tag }}"
+          version_tag="$(jq -r '.version' acore.json)"
           sha_tag="sha-${GITHUB_SHA::12}"
+          latest_tag=""
+          image_tag=""
           world_image="${REGISTRY}/${IMAGE_NAMESPACE}/${REPOSITORY_NAME}-worldserver"
           auth_image="${REGISTRY}/${IMAGE_NAMESPACE}/${REPOSITORY_NAME}-authserver"
 
+          if [[ "${{ inputs.tag_latest }}" == "true" ]]; then
+            latest_tag="latest"
+          fi
+
+          if [[ -n "$requested_tag" ]]; then
+            image_tag="$requested_tag"
+          elif [[ "${{ inputs.tag_latest }}" != "true" ]]; then
+            image_tag="$version_tag"
+          fi
+
+          emit_tags() {
+            local image="$1"
+            shift || true
+            local tag
+            declare -A seen=()
+
+            for tag in "$@"; do
+              [[ -n "$tag" ]] || continue
+
+              if [[ -z "${seen[$tag]:-}" ]]; then
+                echo "${image}:${tag}"
+                seen["$tag"]=1
+              fi
+            done
+          }
+
           {
+            echo "requested_tag=${requested_tag}"
+            echo "version_tag=${version_tag}"
             echo "image_tag=${image_tag}"
             echo "sha_tag=${sha_tag}"
             echo "world_image=${world_image}"
             echo "auth_image=${auth_image}"
             echo "world_tags<<EOF"
-            echo "${world_image}:${image_tag}"
-            echo "${world_image}:${sha_tag}"
-            if [[ "${{ inputs.tag_latest }}" == "true" ]]; then
-              echo "${world_image}:latest"
-            fi
+            emit_tags "$world_image" "$latest_tag" "$image_tag" "$sha_tag"
             echo "EOF"
             echo "auth_tags<<EOF"
-            echo "${auth_image}:${image_tag}"
-            echo "${auth_image}:${sha_tag}"
-            if [[ "${{ inputs.tag_latest }}" == "true" ]]; then
-              echo "${auth_image}:latest"
-            fi
+            emit_tags "$auth_image" "$latest_tag" "$image_tag" "$sha_tag"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -112,8 +130,12 @@ jobs:
           pull: true
           provenance: false
           tags: ${{ steps.meta.outputs.world_tags }}
-          cache-from: type=gha,scope=worldserver
-          cache-to: type=gha,mode=max,scope=worldserver
+          cache-from: |
+            type=gha,scope=server-images
+            type=gha,scope=worldserver
+          cache-to: |
+            type=gha,mode=max,scope=server-images
+            type=gha,mode=max,scope=worldserver
 
       - name: Build authserver image
         uses: docker/build-push-action@v6
@@ -126,8 +148,12 @@ jobs:
           pull: true
           provenance: false
           tags: ${{ steps.meta.outputs.auth_tags }}
-          cache-from: type=gha,scope=authserver
-          cache-to: type=gha,mode=max,scope=authserver
+          cache-from: |
+            type=gha,scope=server-images
+            type=gha,scope=authserver
+          cache-to: |
+            type=gha,mode=max,scope=server-images
+            type=gha,mode=max,scope=authserver
 
       - name: Print image references
         shell: bash
