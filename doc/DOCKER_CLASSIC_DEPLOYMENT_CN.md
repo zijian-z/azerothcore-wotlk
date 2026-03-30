@@ -161,11 +161,40 @@ docker compose up -d
    创建 `acore_auth`、`acore_world`、`acore_characters`。
    如果镜像中包含 `mod-playerbots`，还会创建 `acore_playerbots`。
    创建或更新 `acore@'%'` 用户，并把 `.env` 中的 `AC_DB_PASSWORD` 应用进去。
-   这一步只覆盖官方数据库安装流程，不负责 SQL 导入。
+   这一步只覆盖官方数据库安装流程里的“建库、建用户、授权”，不负责 SQL 导入。
 4. `worldserver`
    在 `AC_DISABLE_INTERACTIVE=1` 下自行执行官方首启 SQL 导入和更新流程，包括 `mod-playerbots` 自带的 SQL。
+   也就是说，核心表结构、基础数据和后续 updates，都是由 `worldserver` 完成。
 5. `authserver`
    等待 `acore_auth.realmlist` 已经导入完成后再启动，并按 `.env` 自动修正 `realmlist` 地址。
+
+更准确地说，首次启动的职责划分如下：
+
+```text
+database
+  -> data-init
+  -> db-prepare
+  -> worldserver
+  -> authserver
+```
+
+对应到实际行为就是：
+
+1. `db-prepare` 只做 MySQL 侧的准备工作。
+   它会等待 MySQL 就绪，然后创建数据库、创建或更新 `acore` 用户、执行授权。
+   这里不会把 `data/sql` 里的表结构和初始数据手工导进去。
+2. `worldserver` 才是数据库初始化和更新的执行者。
+   容器启动时会把 `worldserver.conf` 里的 `Updates.EnableDatabases` 和 `Updates.AutoSetup` 设为可自动导入的状态，因此核心库初始化、更新 SQL、以及 playerbots 相关 SQL 都由 `worldserver` 自己完成。
+3. `authserver` 不负责跑 SQL 更新。
+   容器启动时会把 `authserver.conf` 的 `Updates.EnableDatabases` 设为 `0`，因此它不会尝试初始化数据库。
+4. `authserver` 启动前会先等待 `acore_auth.realmlist` 表已经存在。
+   等待成功后，容器会根据 `.env` 中的 `AC_REALM_ID`、`AC_REALM_NAME`、`AC_REALM_ADDRESS`、`AC_REALM_LOCAL_ADDRESS`、`AC_REALM_LOCAL_SUBNET_MASK`、`AC_REALM_PORT` 自动插入或更新 `realmlist` 记录。
+
+如果你在排障时想快速判断卡在哪一层，可以按下面理解：
+
+- `db-prepare` 报错，优先看 MySQL 连通性、`AC_DB_PASSWORD`、建库授权是否成功。
+- `worldserver` 报错，优先看 `data/sql` 自动导入、更新 SQL、以及 `env/dist/data` 下的 `dbc/maps/vmaps/mmaps` 是否齐全。
+- `authserver` 报错，优先看 `acore_auth.realmlist` 是否已经由前面的流程创建完成，以及 `.env` 里的 realm 地址配置是否正确。
 
 ## 5. 运行校验
 
