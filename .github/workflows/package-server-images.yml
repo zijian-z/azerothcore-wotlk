@@ -16,7 +16,7 @@ on:
         required: false
         default: linux/amd64
       push_images:
-        description: Push images to GHCR
+        description: Push images to configured registries
         required: false
         type: boolean
         default: true
@@ -33,7 +33,7 @@ jobs:
       contents: read
       packages: write
     env:
-      REGISTRY: ghcr.io
+      GHCR_REGISTRY: ghcr.io
       IMAGE_NAMESPACE: ${{ github.repository_owner }}
       REPOSITORY_NAME: ${{ github.event.repository.name }}
     steps:
@@ -55,17 +55,40 @@ jobs:
           test -d modules/mod-playerbots/data/sql/world
           test -d modules/mod-playerbots/data/sql/characters
 
+      - name: Detect Aliyun Registry Config
+        id: aliyun
+        shell: bash
+        env:
+          ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+          ALIYUN_NAMESPACE: ${{ secrets.ALIYUN_NAME_SPACE }}
+          ALIYUN_REGISTRY_USER: ${{ secrets.ALIYUN_REGISTRY_USER }}
+          ALIYUN_REGISTRY_PASSWORD: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${ALIYUN_REGISTRY}" && -n "${ALIYUN_NAMESPACE}" && -n "${ALIYUN_REGISTRY_USER}" && -n "${ALIYUN_REGISTRY_PASSWORD}" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Resolve image names and tags
         id: meta
         shell: bash
         run: |
+          set -euo pipefail
+
           requested_tag="${{ inputs.image_tag }}"
           version_tag="$(jq -r '.version' acore.json)"
           sha_tag="sha-${GITHUB_SHA::12}"
           latest_tag=""
           image_tag=""
-          world_image="${REGISTRY}/${IMAGE_NAMESPACE}/${REPOSITORY_NAME}-worldserver"
-          auth_image="${REGISTRY}/${IMAGE_NAMESPACE}/${REPOSITORY_NAME}-authserver"
+          image_namespace="$(printf '%s' "${IMAGE_NAMESPACE}" | tr '[:upper:]' '[:lower:]')"
+          repository_name="$(printf '%s' "${REPOSITORY_NAME}" | tr '[:upper:]' '[:lower:]')"
+          ghcr_world_image="${GHCR_REGISTRY}/${image_namespace}/${repository_name}-worldserver"
+          ghcr_auth_image="${GHCR_REGISTRY}/${image_namespace}/${repository_name}-authserver"
+          aliyun_world_image=""
+          aliyun_auth_image=""
 
           if [[ "${{ inputs.tag_latest }}" == "true" ]]; then
             latest_tag="latest"
@@ -83,6 +106,8 @@ jobs:
             local tag
             declare -A seen=()
 
+            [[ -n "$image" ]] || return 0
+
             for tag in "$@"; do
               [[ -n "$tag" ]] || continue
 
@@ -93,18 +118,27 @@ jobs:
             done
           }
 
+          if [[ "${{ steps.aliyun.outputs.enabled }}" == "true" ]]; then
+            aliyun_world_image="${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAME_SPACE }}/${repository_name}-worldserver"
+            aliyun_auth_image="${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAME_SPACE }}/${repository_name}-authserver"
+          fi
+
           {
             echo "requested_tag=${requested_tag}"
             echo "version_tag=${version_tag}"
             echo "image_tag=${image_tag}"
             echo "sha_tag=${sha_tag}"
-            echo "world_image=${world_image}"
-            echo "auth_image=${auth_image}"
+            echo "ghcr_world_image=${ghcr_world_image}"
+            echo "ghcr_auth_image=${ghcr_auth_image}"
+            echo "aliyun_world_image=${aliyun_world_image}"
+            echo "aliyun_auth_image=${aliyun_auth_image}"
             echo "world_tags<<EOF"
-            emit_tags "$world_image" "$latest_tag" "$image_tag" "$sha_tag"
+            emit_tags "$ghcr_world_image" "$latest_tag" "$image_tag" "$sha_tag"
+            emit_tags "$aliyun_world_image" "$latest_tag" "$image_tag" "$sha_tag"
             echo "EOF"
             echo "auth_tags<<EOF"
-            emit_tags "$auth_image" "$latest_tag" "$image_tag" "$sha_tag"
+            emit_tags "$ghcr_auth_image" "$latest_tag" "$image_tag" "$sha_tag"
+            emit_tags "$aliyun_auth_image" "$latest_tag" "$image_tag" "$sha_tag"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -115,9 +149,17 @@ jobs:
         if: ${{ inputs.push_images }}
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ${{ env.GHCR_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Aliyun Registry
+        if: ${{ inputs.push_images && steps.aliyun.outputs.enabled == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USER }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
 
       - name: Build worldserver image
         uses: docker/build-push-action@v6
