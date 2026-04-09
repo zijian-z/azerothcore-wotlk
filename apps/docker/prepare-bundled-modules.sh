@@ -17,6 +17,28 @@ log() {
     printf '[module-bundle] %s\n' "$*"
 }
 
+normalize_module_sql_layout() {
+    local module_root="$1"
+    local sql_root="${module_root}/data/sql"
+
+    [[ -d "$sql_root" ]] || return 0
+
+    local source_dir target_name
+    for source_dir in db-auth db-world db-characters; do
+        case "$source_dir" in
+            db-auth) target_name="auth" ;;
+            db-world) target_name="world" ;;
+            db-characters) target_name="characters" ;;
+            *) continue ;;
+        esac
+
+        if [[ -d "${sql_root}/${source_dir}" && ! -e "${sql_root}/${target_name}" ]]; then
+            ln -s "$source_dir" "${sql_root}/${target_name}"
+            log "Linked ${module_root}/data/sql/${target_name} -> ${source_dir}"
+        fi
+    done
+}
+
 for spec in "${MODULE_SPECS[@]}"; do
     IFS='|' read -r module_name module_repo module_branch module_conf_path module_sql_paths <<< "$spec"
 
@@ -26,6 +48,8 @@ for spec in "${MODULE_SPECS[@]}"; do
 
     log "Cloning ${module_name} (${module_branch})"
     git clone --depth 1 --branch "$module_branch" --single-branch "$module_repo" "$module_target_dir" >/dev/null
+
+    normalize_module_sql_layout "$module_target_dir"
 
     if [[ -n "$module_conf_path" && ! -f "${module_target_dir}/${module_conf_path}" ]]; then
         printf '[module-bundle] ERROR: missing config file: %s\n' "${module_target_dir}/${module_conf_path}" >&2

@@ -45,6 +45,30 @@ has_playerbots_module() {
     [[ -d "$AC_ROOT/modules/mod-playerbots" ]] || [[ -f "$MODULE_CONF_DIR/playerbots.conf.dist" ]] || [[ -f "$MODULE_CONF_DIR/playerbots.conf" ]]
 }
 
+normalize_module_sql_layouts() {
+    local module_dir
+    local sql_dir
+
+    for module_dir in "$AC_ROOT"/modules/*; do
+        [[ -d "$module_dir" ]] || continue
+
+        sql_dir="${module_dir}/data/sql"
+        [[ -d "$sql_dir" ]] || continue
+
+        if [[ -d "${sql_dir}/db-auth" && ! -e "${sql_dir}/auth" ]]; then
+            ln -s "db-auth" "${sql_dir}/auth"
+        fi
+
+        if [[ -d "${sql_dir}/db-world" && ! -e "${sql_dir}/world" ]]; then
+            ln -s "db-world" "${sql_dir}/world"
+        fi
+
+        if [[ -d "${sql_dir}/db-characters" && ! -e "${sql_dir}/characters" ]]; then
+            ln -s "db-characters" "${sql_dir}/characters"
+        fi
+    done
+}
+
 copy_default_configs() {
     local file
 
@@ -129,6 +153,7 @@ set_config_value() {
 
 prepare_configs() {
     ensure_runtime_dirs
+    normalize_module_sql_layouts
     copy_default_configs
     copy_external_configs
     ensure_runtime_module_confs

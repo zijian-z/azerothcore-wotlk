@@ -133,6 +133,7 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - `mod-autobalance` 主要通过 `AutoBalance.conf` 调参，没有额外独立数据库。
 - `mod-aoe-loot` 的 `AOELoot.Range`、`AOELoot.Group`、`AOELoot.Message` 都可以直接在 `mod_aoe_loot.conf` 中外置调整。
 - `mod-transmog` 的幻化费用、允许的品质、是否启用外观收藏等都在 `transmog.conf` 中配置。
+- 镜像启动时会自动兼容一部分模块仓库常见的 `data/sql/db-auth|db-world|db-characters` 目录写法，把它映射成 AzerothCore 自动更新器识别的 `data/sql/auth|world|characters`。
 
 本地部署时，把生成出来的镜像地址写入根目录 `.env` 里的 `WORLD_IMAGE` 和 `AUTH_IMAGE`。
 
