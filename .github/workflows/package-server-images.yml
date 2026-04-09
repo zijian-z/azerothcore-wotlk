@@ -42,18 +42,10 @@ jobs:
         with:
           ref: ${{ inputs.source_ref }}
 
-      - name: Checkout Playerbot module
+      - name: Prepare bundled modules
         shell: bash
         run: |
-          rm -rf modules/mod-playerbots
-          git clone --depth 1 --branch master --single-branch \
-            https://github.com/mod-playerbots/mod-playerbots.git \
-            modules/mod-playerbots
-
-          test -f modules/mod-playerbots/conf/playerbots.conf.dist
-          test -d modules/mod-playerbots/data/sql/playerbots
-          test -d modules/mod-playerbots/data/sql/world
-          test -d modules/mod-playerbots/data/sql/characters
+          bash apps/docker/prepare-bundled-modules.sh modules
 
       - name: Detect Aliyun Registry Config
         id: aliyun

@@ -24,7 +24,7 @@
 - `env/user`
   外部输入目录。放用户提供的 `Data.zip` 和配置文件。
 - `env/dist/etc`
-  运行时配置目录。容器会把默认配置和外部配置整理到这里。
+  运行时配置目录。容器会把默认配置和外部配置整理到这里；模块配置会放到 `env/dist/etc/modules`。
 - `env/dist/data`
   解压后的客户端数据目录，最终包含 `dbc/`、`maps/`、`vmaps/`、`mmaps/`。
 - `env/dist/logs`
@@ -48,14 +48,19 @@ env/user/
 ├── authserver.conf
 ├── worldserver.conf
 └── modules/
-    └── *.conf
+    ├── playerbots.conf
+    ├── transmog.conf
+    ├── AutoBalance.conf
+    ├── mod_ahbot.conf
+    └── mod_aoe_loot.conf
 ```
 
 说明：
 
 - `Data.zip` 是必需的，除非你已经把 `dbc/maps/vmaps/mmaps` 预先放到了 `env/dist/data`。
 - `authserver.conf`、`worldserver.conf` 是可选的。
-- 如果你提供了外部配置文件，容器每次启动都会先把它们同步到 `env/dist/etc`，然后再自动修正数据库连接、`DataDir`、`LogsDir`、`TempDir` 这些必须由容器托管的字段。
+- 如果你提供了外部配置文件，容器每次启动都会先把它们同步到 `env/dist/etc` 和 `env/dist/etc/modules`，然后再自动修正数据库连接、`DataDir`、`LogsDir`、`TempDir` 这些必须由容器托管的字段。
+- Linux 文件系统大小写敏感，因此 `AutoBalance.conf` 要保留大小写，不能写成 `autobalance.conf`。
 
 ## 2. GitHub Actions 手动打包镜像
 
@@ -82,11 +87,10 @@ env/user/
 - 当 `image_tag` 留空且 `tag_latest` 没勾选时，工作流会回退到 `acore.json` 里的版本号。
 - 当 `image_tag` 留空且 `tag_latest` 勾选时，工作流只会发布 `latest` 和 `sha-<commit>`，不会再额外挂一个版本号 tag。
 
-对 fork 仓库，这个工作流直接使用你仓库的 `Playerbot` 分支源码编译，不会重新 clone 原始 `mod-playerbots/azerothcore-wotlk`。额外补的只有模块准备步骤，也就是把 `mod-playerbots` 拉到 `modules/mod-playerbots`：
+对 fork 仓库，这个工作流直接使用你仓库的 `Playerbot` 分支源码编译，不会重新 clone 原始 `mod-playerbots/azerothcore-wotlk`。额外补的是模块准备步骤：工作流会执行 [`apps/docker/prepare-bundled-modules.sh`](../apps/docker/prepare-bundled-modules.sh)，把下列模块拉到 `modules/` 目录后再编译：
 
 ```bash
-cd modules
-git clone https://github.com/mod-playerbots/mod-playerbots.git --branch=master
+bash apps/docker/prepare-bundled-modules.sh modules
 ```
 
 因此打包出来的镜像会同时包含：
@@ -95,6 +99,40 @@ git clone https://github.com/mod-playerbots/mod-playerbots.git --branch=master
 - `modules/mod-playerbots/data/sql/playerbots`
 - `modules/mod-playerbots/data/sql/world`
 - `modules/mod-playerbots/data/sql/characters`
+- `mod-transmog` 模块源码和 `data/sql/db-auth`、`data/sql/db-characters`、`data/sql/db-world`
+- `mod-autobalance` 模块源码和 `conf/AutoBalance.conf.dist`
+- `mod-ah-bot-plus` 模块源码和 `data/sql/db-auth`、`data/sql/db-characters`、`data/sql/db-world`
+- `mod-aoe-loot` 模块源码和 `data/sql/db-auth`、`data/sql/db-characters`、`data/sql/db-world`
+
+这些模块的主要用途如下：
+
+- `mod-playerbots`
+  提供 AI 玩家机器人，可用于单人/小队补员、测试队伍和 PvE 内容。
+- `mod-transmog`
+  提供幻化系统，支持按装备外观覆盖显示，并可启用收藏外观系统。
+- `mod-autobalance`
+  按副本内实际玩家人数自动缩放怪物和 Boss 的生命、伤害等强度，方便单刷或小队挑战多人副本。
+- `mod-ah-bot-plus`
+  提供拍卖行机器人，按配置自动上架、定价、购买和刷新拍卖内容，让 AH 更接近有人持续交易的状态。
+- `mod-aoe-loot`
+  提供范围拾取功能，玩家点击一个尸体时可以一并拾取附近多个尸体的金币和物品。
+
+对应的模块配置文件也都会随镜像安装到 `env/dist/etc/modules/`，因此可以直接通过宿主机卷替换：
+
+- `env/dist/etc/modules/playerbots.conf`
+- `env/dist/etc/modules/transmog.conf`
+- `env/dist/etc/modules/AutoBalance.conf`
+- `env/dist/etc/modules/mod_ahbot.conf`
+- `env/dist/etc/modules/mod_aoe_loot.conf`
+
+如果你更喜欢把自定义配置和仓库产物分开管理，也可以把同名文件提前放到 `env/user/modules/`，容器启动时会优先同步过去。
+
+几个实用提醒：
+
+- `mod-ah-bot-plus` 默认 `AuctionHouseBot.EnableSeller = false`，而且必须先在 `mod_ahbot.conf` 里设置至少一个普通玩家角色 GUID 到 `AuctionHouseBot.GUIDs`，拍卖机器人才能开始工作。
+- `mod-autobalance` 主要通过 `AutoBalance.conf` 调参，没有额外独立数据库。
+- `mod-aoe-loot` 的 `AOELoot.Range`、`AOELoot.Group`、`AOELoot.Message` 都可以直接在 `mod_aoe_loot.conf` 中外置调整。
+- `mod-transmog` 的幻化费用、允许的品质、是否启用外观收藏等都在 `transmog.conf` 中配置。
 
 本地部署时，把生成出来的镜像地址写入根目录 `.env` 里的 `WORLD_IMAGE` 和 `AUTH_IMAGE`。
 
@@ -119,6 +157,7 @@ AC_REALM_ADDRESS=your-public-ip-or-domain
 
 - `AC_DB_PASSWORD` 是唯一必须由用户提供的 AzerothCore 数据库密码。
 - `AC_PLAYERBOTS_DATABASE` 默认是 `acore_playerbots`，通常不需要修改。
+- 这四个新增模块不需要额外新增数据库环境变量；其中带 SQL 的模块会跟随核心 `auth/world/characters` 自动导入。
 - MySQL `root` 不设置密码。
 - Compose 默认不对宿主机暴露 MySQL 端口，因此 `root` 只在容器网络内可用。
 - 运行镜像使用容器默认 `root` 用户，不再额外创建 `acore` Linux 用户。
@@ -139,6 +178,7 @@ AC_REALM_ADDRESS=your-public-ip-or-domain
 
 1. 把 `Data.zip` 放到 `env/user/Data.zip`。
 2. 如有自定义配置，把 `authserver.conf`、`worldserver.conf` 放到 `env/user/`。
+   如有模块自定义配置，把 `playerbots.conf`、`transmog.conf`、`AutoBalance.conf`、`mod_ahbot.conf`、`mod_aoe_loot.conf` 放到 `env/user/modules/`。
 3. 拉取镜像：
 
 ```bash
@@ -163,7 +203,7 @@ docker compose up -d
    创建或更新 `acore@'%'` 用户，并把 `.env` 中的 `AC_DB_PASSWORD` 应用进去。
    这一步只覆盖官方数据库安装流程里的“建库、建用户、授权”，不负责 SQL 导入。
 4. `worldserver`
-   在 `AC_DISABLE_INTERACTIVE=1` 下自行执行官方首启 SQL 导入和更新流程，包括 `mod-playerbots` 自带的 SQL。
+   在 `AC_DISABLE_INTERACTIVE=1` 下自行执行官方首启 SQL 导入和更新流程，包括 `mod-playerbots`、`mod-transmog`、`mod-ah-bot-plus`、`mod-aoe-loot` 自带的 SQL。
    也就是说，核心表结构、基础数据和后续 updates，都是由 `worldserver` 完成。
 5. `authserver`
    等待 `acore_auth.realmlist` 已经导入完成后再启动，并按 `.env` 自动修正 `realmlist` 地址。
@@ -184,7 +224,7 @@ database
    它会等待 MySQL 就绪，然后创建数据库、创建或更新 `acore` 用户、执行授权。
    这里不会把 `data/sql` 里的表结构和初始数据手工导进去。
 2. `worldserver` 才是数据库初始化和更新的执行者。
-   容器启动时会把 `worldserver.conf` 里的 `Updates.EnableDatabases` 和 `Updates.AutoSetup` 设为可自动导入的状态，因此核心库初始化、更新 SQL、以及 playerbots 相关 SQL 都由 `worldserver` 自己完成。
+   容器启动时会把 `worldserver.conf` 里的 `Updates.EnableDatabases` 和 `Updates.AutoSetup` 设为可自动导入的状态，因此核心库初始化、更新 SQL、以及这些打包模块自带的 SQL 都由 `worldserver` 自己完成。
 3. `authserver` 不负责跑 SQL 更新。
    容器启动时会把 `authserver.conf` 的 `Updates.EnableDatabases` 设为 `0`，因此它不会尝试初始化数据库。
 4. `authserver` 启动前会先等待 `acore_auth.realmlist` 表已经存在。
@@ -287,5 +327,6 @@ docker compose exec authserver bash
 
 - 这套部署默认不暴露 MySQL 到宿主机，是为了配合“`root` 无密码但仅容器内可用”的要求。
 - `authserver.conf`、`worldserver.conf` 即使由用户外部提供，数据库连接和容器路径仍会在启动时被自动修正，这是为了保证和 Docker 运行目录一致。
+- 模块配置同样支持外置覆盖：镜像默认配置在 `env/dist/etc/modules`，外部覆盖入口在 `env/user/modules`。
 - 如果你的外部配置文件里改了 `SOAP.Port`、`BindIP`、日志路径、`DataDir` 等字段，请同步检查 `.env` 和端口映射是否匹配。
 - 旧的 Docker 多 profile、本地 `docker compose build`、`client-data-init`、`db-import` 专用镜像流程已移除，避免再依赖官方旧 Docker 方案。
