@@ -5,15 +5,6 @@ description: |
   Do not remove this if something is broken here and you don't know how to fix it, ping Yehonal instead.
 
 on:
-  push:
-    branches:
-      - 'master'
-      - 'test-staging'
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
   workflow_dispatch:
 
 concurrency:

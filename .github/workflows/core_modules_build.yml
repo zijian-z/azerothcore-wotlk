@@ -1,24 +1,6 @@
 name: nopch-module-build
 on:
-  push:
-    branches:
-      - 'master'
-      - 'test-staging'
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-    paths:
-      - 'src/*'
-      - 'src/common/**/*'
-      - 'src/genrev/**/*'
-      - 'src/server/*'
-      - 'src/server/apps/**/*'
-      - 'src/server/database/**/*'
-      - 'src/server/game/**/*'
-      - 'src/server/shared/**/*'
-      - 'src/tools/**/*'
+  workflow_dispatch:
 
 permissions:
   actions: write

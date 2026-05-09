@@ -1,14 +1,6 @@
 name: SQL Codestyle
 on:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-    paths:
-      - data/**
-      - "!README.md"
-      - "!docs/**"
+  workflow_dispatch:
 
 jobs:
   triage:

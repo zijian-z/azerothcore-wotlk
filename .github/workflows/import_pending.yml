@@ -1,9 +1,6 @@
 name: import-pending
 on:
-  push:
-    branches:
-      - master
-      - test-staging   # add this if you want pending SQL imported on this branch too
+  workflow_dispatch:
 
 jobs:
   import-pending:

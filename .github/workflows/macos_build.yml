@@ -1,14 +1,7 @@
 name: macos-build
 
 on:
-  push:
-    branches:
-      - "Playerbot"
-      - "test-staging"
-  pull_request:
-    branches:
-      - "Playerbot"
-      - "test-staging"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

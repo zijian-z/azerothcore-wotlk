@@ -1,14 +1,6 @@
 name: C++ Codestyle
 on:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-    paths:
-      - src/**
-      - "!README.md"
-      - "!docs/**"
+  workflow_dispatch:
 
 jobs:
   triage:
