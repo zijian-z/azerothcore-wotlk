@@ -45,9 +45,13 @@ has_playerbots_module() {
     [[ -d "$AC_ROOT/modules/mod-playerbots" ]] || [[ -f "$MODULE_CONF_DIR/playerbots.conf.dist" ]] || [[ -f "$MODULE_CONF_DIR/playerbots.conf" ]]
 }
 
-normalize_module_sql_layouts() {
+cleanup_legacy_module_sql_links() {
     local module_dir
     local sql_dir
+    local link_name
+    local target_name
+    local link_path
+    local link_target
 
     for module_dir in "$AC_ROOT"/modules/*; do
         [[ -d "$module_dir" ]] || continue
@@ -55,17 +59,25 @@ normalize_module_sql_layouts() {
         sql_dir="${module_dir}/data/sql"
         [[ -d "$sql_dir" ]] || continue
 
-        if [[ -d "${sql_dir}/db-auth" && ! -e "${sql_dir}/auth" ]]; then
-            ln -s "db-auth" "${sql_dir}/auth"
-        fi
+        for link_name in auth world characters; do
+            case "$link_name" in
+                auth) target_name="db-auth" ;;
+                world) target_name="db-world" ;;
+                characters) target_name="db-characters" ;;
+                *) continue ;;
+            esac
 
-        if [[ -d "${sql_dir}/db-world" && ! -e "${sql_dir}/world" ]]; then
-            ln -s "db-world" "${sql_dir}/world"
-        fi
+            link_path="${sql_dir}/${link_name}"
+            if [[ ! -L "$link_path" ]]; then
+                continue
+            fi
 
-        if [[ -d "${sql_dir}/db-characters" && ! -e "${sql_dir}/characters" ]]; then
-            ln -s "db-characters" "${sql_dir}/characters"
-        fi
+            link_target="$(readlink "$link_path")"
+            if [[ "$link_target" == "$target_name" || "$link_target" == "./${target_name}" ]]; then
+                rm -f "$link_path"
+                log "Removed legacy SQL compatibility link ${link_path} -> ${target_name}"
+            fi
+        done
     done
 }
 
@@ -153,7 +165,7 @@ set_config_value() {
 
 prepare_configs() {
     ensure_runtime_dirs
-    normalize_module_sql_layouts
+    cleanup_legacy_module_sql_links
     copy_default_configs
     copy_external_configs
     ensure_runtime_module_confs

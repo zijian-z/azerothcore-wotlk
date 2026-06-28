@@ -81,13 +81,15 @@ env/user/
 1. 打开 GitHub Actions。
 2. 运行 `package-server-images`。
 3. 保持 `source_ref=Playerbot`，除非你明确要打包其他分支。
-4. 如果你要发布固定版本 tag，就填写 `image_tag`；如果你要让 GHCR 里以 `latest` 作为主 tag，就勾选 `tag_latest` 并把 `image_tag` 留空。
-5. 等待两个镜像构建并推送完成。
+4. `runner` 默认保持 `ubuntu-22.04`，用于正式发版；如果只是验证并且你的 WSL 自托管 runner 在线，可以改成 `self-hosted`，流程仍会正常构建并推送镜像。
+5. 如果你要发布固定版本 tag，就填写 `image_tag`；如果你要让 GHCR 里以 `latest` 作为主 tag，就勾选 `tag_latest` 并把 `image_tag` 留空。
+6. 等待两个镜像构建并推送完成。
 
 补充说明：
 
 - 当 `image_tag` 留空且 `tag_latest` 没勾选时，工作流会回退到 `acore.json` 里的版本号。
 - 当 `image_tag` 留空且 `tag_latest` 勾选时，工作流只会发布 `latest` 和 `sha-<commit>`，不会再额外挂一个版本号 tag。
+- 使用 `self-hosted` runner 时，WSL 机器需要先安装并启动 GitHub Actions runner、Docker、Docker Compose v2 和 Docker Buildx。Dockerfile 编译阶段会使用 `nproc + 1` 个并发任务，因此会自动使用 WSL/Docker 环境可见的 CPU 核心数；如果 `.wslconfig` 或 Docker Desktop 资源设置限制了 CPU，就只会使用限制后的核心数。
 
 对 fork 仓库，这个工作流直接使用你仓库的 `Playerbot` 分支源码编译，不会重新 clone 原始 `mod-playerbots/azerothcore-wotlk`。额外补的是模块准备步骤：工作流会执行 [`apps/docker/prepare-bundled-modules.sh`](../apps/docker/prepare-bundled-modules.sh)，把下列模块拉到 `modules/` 目录后再编译：
 
@@ -145,7 +147,7 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - `mod-learn-spells` 主要通过 `mod_learnspells.conf` 控制是否启用、是否登录时补学、最高补学等级。
 - `mod-random-enchants` 的触发来源和附魔概率在 `random_enchants.conf` 中配置。
 - `mod-dungeon-master` 的 NPC entry 默认是 `500000`，配置项前缀是 `DungeonMaster.*`，模块会导入世界库和角色库 SQL。
-- 镜像启动时会自动兼容一部分模块仓库常见的 `data/sql/db-auth|db-world|db-characters` 目录写法，把它映射成 AzerothCore 自动更新器识别的 `data/sql/auth|world|characters`。
+- AzerothCore 自动更新器会直接识别模块仓库常见的 `data/sql/db-auth|db-world|db-characters` 目录写法；镜像启动时只会清理旧版打包留下的 `auth|world|characters -> db-*` 兼容链接，避免同一个 SQL 文件被重复扫描。
 - 更完整的模块功能和使用方式见 [`DOCKER_BUNDLED_MODULES_CN.md`](./DOCKER_BUNDLED_MODULES_CN.md)。
 
 本地部署时，把生成出来的镜像地址写入根目录 `.env` 里的 `WORLD_IMAGE` 和 `AUTH_IMAGE`。

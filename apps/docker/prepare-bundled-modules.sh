@@ -25,24 +25,29 @@ log() {
     printf '[module-bundle] %s\n' "$*"
 }
 
-normalize_module_sql_layout() {
+cleanup_legacy_module_sql_links() {
     local module_root="$1"
     local sql_root="${module_root}/data/sql"
 
     [[ -d "$sql_root" ]] || return 0
 
-    local source_dir target_name
-    for source_dir in db-auth db-world db-characters; do
-        case "$source_dir" in
-            db-auth) target_name="auth" ;;
-            db-world) target_name="world" ;;
-            db-characters) target_name="characters" ;;
+    local link_name target_name link_path link_target
+    for link_name in auth world characters; do
+        case "$link_name" in
+            auth) target_name="db-auth" ;;
+            world) target_name="db-world" ;;
+            characters) target_name="db-characters" ;;
             *) continue ;;
         esac
 
-        if [[ -d "${sql_root}/${source_dir}" && ! -e "${sql_root}/${target_name}" ]]; then
-            ln -s "$source_dir" "${sql_root}/${target_name}"
-            log "Linked ${module_root}/data/sql/${target_name} -> ${source_dir}"
+        link_path="${sql_root}/${link_name}"
+        if [[ -L "$link_path" ]]; then
+            link_target="$(readlink "$link_path")"
+
+            if [[ "$link_target" == "$target_name" || "$link_target" == "./${target_name}" ]]; then
+                rm -f "$link_path"
+                log "Removed legacy SQL compatibility link ${module_root}/data/sql/${link_name} -> ${target_name}"
+            fi
         fi
     done
 }
@@ -66,7 +71,7 @@ for spec in "${MODULE_SPECS[@]}"; do
     log "Cloning ${module_name} (${module_branch})"
     git clone --depth 1 --branch "$module_branch" --single-branch "$module_repo" "$module_target_dir" >/dev/null
 
-    normalize_module_sql_layout "$module_target_dir"
+    cleanup_legacy_module_sql_links "$module_target_dir"
 
     if [[ -n "$module_conf_path" && ! -f "${module_target_dir}/${module_conf_path}" ]]; then
         printf '[module-bundle] ERROR: missing config file: %s\n' "${module_target_dir}/${module_conf_path}" >&2

@@ -92,9 +92,9 @@ Linux 文件系统大小写敏感，尤其注意：
 - `mod-playerbots` 会使用独立数据库，默认环境变量是 `AC_PLAYERBOTS_DATABASE=acore_playerbots`。
 - `mod-transmog`、`mod-ah-bot-plus`、`mod-random-enchants`、`mod-dungeon-master` 的 SQL 会随 `worldserver` 自动导入到核心库。
 - `mod-autobalance`、`mod-learn-spells` 没有独立 SQL。
-- `mod-ah-bot-plus` 使用 auth、characters、world SQL 目录，目前这些目录主要用于模块更新器布局和占位。
+- `mod-ah-bot-plus` 使用 `db-auth`、`db-characters`、`db-world` SQL 目录，目前这些目录主要用于模块更新器布局和占位。
 - `mod-dungeon-master` 使用世界库和角色库 SQL，导入 Dungeon Master NPC、挑战系统数据和角色挑战记录表。
-- `mod-random-enchants`、`mod-dungeon-master` 等模块使用上游常见的 `data/sql/db-world` / `data/sql/db-characters` 目录，打包脚本会自动创建 `data/sql/world` / `data/sql/characters` 兼容链接。
+- `mod-random-enchants`、`mod-dungeon-master` 等模块使用上游常见的 `data/sql/db-world` / `data/sql/db-characters` 目录，AzerothCore 自动更新器会直接识别这些目录。打包脚本不会再创建 `data/sql/world` / `data/sql/characters` 兼容链接，避免同一个 SQL 文件被重复扫描。
 
 ## mod-playerbots
 
