@@ -1,4 +1,4 @@
-ARG UBUNTU_VERSION=22.04
+ARG UBUNTU_VERSION=24.04 # lts
 
 FROM ubuntu:${UBUNTU_VERSION} AS build
 
@@ -18,7 +18,7 @@ RUN apt-get update \
         curl unzip default-mysql-client openssl \
         default-libmysqlclient-dev libboost-all-dev libssl-dev \
         libmysql++-dev libreadline-dev zlib1g-dev \
-        libbz2-dev libncurses5-dev \
+        libbz2-dev libncurses5-dev liblzma-dev \
     && ln -snf "/usr/share/zoneinfo/$TZ" /etc/localtime \
     && echo "$TZ" > /etc/timezone \
     && dpkg-reconfigure --frontend noninteractive tzdata \
@@ -85,6 +85,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash tzdata ca-certificates unzip gettext-base \
         default-mysql-client libmysqlclient21 libreadline8 \
+        libicu74 libncurses5-dev \
     && ln -snf "/usr/share/zoneinfo/$TZ" /etc/localtime \
     && echo "$TZ" > /etc/timezone \
     && dpkg-reconfigure --frontend noninteractive tzdata \
