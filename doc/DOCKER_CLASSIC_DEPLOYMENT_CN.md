@@ -53,8 +53,7 @@ env/user/
     ├── AutoBalance.conf
     ├── mod_ahbot.conf
     ├── mod_learnspells.conf
-    ├── random_enchants.conf
-    └── mod_dungeon_master.conf
+    └── random_enchants.conf
 ```
 
 说明：
@@ -108,7 +107,6 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - `mod-ah-bot-plus` 模块源码和 `data/sql/db-auth`、`data/sql/db-characters`、`data/sql/db-world`
 - `mod-learn-spells` 模块源码和 `conf/mod_learnspells.conf.dist`
 - `mod-random-enchants` 模块源码和 `data/sql/db-world`
-- `mod-dungeon-master` 模块源码和 `data/sql/db-world`、`data/sql/db-characters`
 
 这些模块的主要用途如下：
 
@@ -124,8 +122,6 @@ bash apps/docker/prepare-bundled-modules.sh modules
   玩家升级时自动学习可用职业法术，接近后续资料片的升级体验。
 - `mod-random-enchants`
   在拾取、任务奖励、专业制造或队伍 Roll 获得物品时，按概率附加随机附魔。
-- `mod-dungeon-master`
-  提供程序化地下城挑战，玩家通过 Dungeon Master NPC 选择难度、主题和地下城，也可使用 Roguelike 连续挑战模式。
 
 对应的模块配置文件也都会随镜像安装到 `env/dist/etc/modules/`，因此可以直接通过宿主机卷替换：
 
@@ -135,7 +131,6 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - `env/dist/etc/modules/mod_ahbot.conf`
 - `env/dist/etc/modules/mod_learnspells.conf`
 - `env/dist/etc/modules/random_enchants.conf`
-- `env/dist/etc/modules/mod_dungeon_master.conf`
 
 如果你更喜欢把自定义配置和仓库产物分开管理，也可以把同名文件提前放到 `env/user/modules/`，容器启动时会优先同步过去。
 
@@ -146,7 +141,6 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - `mod-transmog` 的幻化费用、允许的品质、是否启用外观收藏等都在 `transmog.conf` 中配置，配置项前缀是 `Transmogrification.*`。
 - `mod-learn-spells` 主要通过 `mod_learnspells.conf` 控制是否启用、是否登录时补学、最高补学等级。
 - `mod-random-enchants` 的触发来源和附魔概率在 `random_enchants.conf` 中配置。
-- `mod-dungeon-master` 的 NPC entry 默认是 `500000`，配置项前缀是 `DungeonMaster.*`，模块会导入世界库和角色库 SQL。
 - AzerothCore 自动更新器会直接识别模块仓库常见的 `data/sql/db-auth|db-world|db-characters` 目录写法；镜像启动时只会清理旧版打包留下的 `auth|world|characters -> db-*` 兼容链接，避免同一个 SQL 文件被重复扫描。
 - 更完整的模块功能和使用方式见 [`DOCKER_BUNDLED_MODULES_CN.md`](./DOCKER_BUNDLED_MODULES_CN.md)。
 
@@ -194,7 +188,7 @@ AC_REALM_ADDRESS=your-public-ip-or-domain
 
 1. 把 `Data.zip` 放到 `env/user/Data.zip`。
 2. 如有自定义配置，把 `authserver.conf`、`worldserver.conf` 放到 `env/user/`。
-   如有模块自定义配置，把 `playerbots.conf`、`transmog.conf`、`AutoBalance.conf`、`mod_ahbot.conf`、`mod_learnspells.conf`、`random_enchants.conf`、`mod_dungeon_master.conf` 放到 `env/user/modules/`。
+   如有模块自定义配置，把 `playerbots.conf`、`transmog.conf`、`AutoBalance.conf`、`mod_ahbot.conf`、`mod_learnspells.conf`、`random_enchants.conf` 放到 `env/user/modules/`。
 3. 拉取镜像：
 
 ```bash
@@ -219,7 +213,7 @@ docker compose up -d
    创建或更新 `acore@'%'` 用户，并把 `.env` 中的 `AC_DB_PASSWORD` 应用进去。
    这一步只覆盖官方数据库安装流程里的“建库、建用户、授权”，不负责 SQL 导入。
 4. `worldserver`
-   在 `AC_DISABLE_INTERACTIVE=1` 下自行执行官方首启 SQL 导入和更新流程，包括 `mod-playerbots`、`mod-transmog`、`mod-ah-bot-plus`、`mod-random-enchants`、`mod-dungeon-master` 自带的 SQL。
+   在 `AC_DISABLE_INTERACTIVE=1` 下自行执行官方首启 SQL 导入和更新流程，包括 `mod-playerbots`、`mod-transmog`、`mod-ah-bot-plus`、`mod-random-enchants` 自带的 SQL。
    也就是说，核心表结构、基础数据和后续 updates，都是由 `worldserver` 完成。
 5. `authserver`
    等待 `acore_auth.realmlist` 已经导入完成后再启动，并按 `.env` 自动修正 `realmlist` 地址。

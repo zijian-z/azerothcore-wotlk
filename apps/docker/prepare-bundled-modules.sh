@@ -12,7 +12,6 @@ declare -a MODULE_SPECS=(
     "mod-ah-bot-plus|https://github.com/NathanHandley/mod-ah-bot-plus.git|master|conf/mod_ahbot.conf.dist|data/sql/db-auth data/sql/db-characters data/sql/db-world"
     "mod-learn-spells|https://github.com/azerothcore/mod-learn-spells.git|master|conf/mod_learnspells.conf.dist|"
     "mod-random-enchants|https://github.com/azerothcore/mod-random-enchants.git|master|conf/random_enchants.conf.dist|data/sql/db-world"
-    "mod-dungeon-master|https://github.com/InstanceForge/mod-dungeon-master.git|main|conf/mod_dungeon_master.conf.dist|data/sql/db-world data/sql/db-characters"
 )
 
 declare -a REMOVED_MODULES=(
