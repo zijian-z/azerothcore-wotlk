@@ -9,8 +9,14 @@ declare -a MODULE_SPECS=(
     "mod-playerbots|https://github.com/mod-playerbots/mod-playerbots.git|master|conf/playerbots.conf.dist|data/sql/playerbots data/sql/world data/sql/characters"
     "mod-transmog|https://github.com/azerothcore/mod-transmog.git|master|conf/transmog.conf.dist|data/sql/db-auth data/sql/db-characters data/sql/db-world"
     "mod-autobalance|https://github.com/azerothcore/mod-autobalance.git|master|conf/AutoBalance.conf.dist|"
-    "mod-ah-bot-plus|https://github.com/NathanHandley/mod-ah-bot-plus.git|master|conf/mod_ahbot.conf.dist|data/sql/db-auth data/sql/db-characters data/sql/db-world"
-    "mod-aoe-loot|https://github.com/azerothcore/mod-aoe-loot.git|master|conf/mod_aoe_loot.conf.dist|data/sql/db-auth data/sql/db-characters data/sql/db-world"
+    "mod-learn-spells|https://github.com/azerothcore/mod-learn-spells.git|master|conf/mod_learnspells.conf.dist|"
+    "mod-individual-progression|https://github.com/ZhengPeiRu21/mod-individual-progression.git|master|conf/individualProgression.conf.dist|data/sql/auth data/sql/characters data/sql/world"
+    "mod-random-enchants|https://github.com/azerothcore/mod-random-enchants.git|master|conf/random_enchants.conf.dist|data/sql/db-world"
+)
+
+declare -a REMOVED_MODULES=(
+    "mod-ah-bot-plus"
+    "mod-aoe-loot"
 )
 
 log() {
@@ -38,6 +44,15 @@ normalize_module_sql_layout() {
         fi
     done
 }
+
+for module_name in "${REMOVED_MODULES[@]}"; do
+    module_target_dir="${MODULES_DIR}/${module_name}"
+
+    if [[ -e "$module_target_dir" ]]; then
+        rm -rf "$module_target_dir"
+        log "Removed obsolete ${module_name}"
+    fi
+done
 
 for spec in "${MODULE_SPECS[@]}"; do
     IFS='|' read -r module_name module_repo module_branch module_conf_path module_sql_paths <<< "$spec"

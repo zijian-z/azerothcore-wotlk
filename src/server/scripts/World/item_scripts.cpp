@@ -58,7 +58,7 @@ public:
         if (player->IsInFlight())
         {
             if (!disabled)
-                return false;
+                return false;	
         }
         else // error
         {

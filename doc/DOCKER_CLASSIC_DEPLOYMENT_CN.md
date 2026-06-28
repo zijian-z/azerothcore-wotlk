@@ -51,8 +51,9 @@ env/user/
     ├── playerbots.conf
     ├── transmog.conf
     ├── AutoBalance.conf
-    ├── mod_ahbot.conf
-    └── mod_aoe_loot.conf
+    ├── mod_learnspells.conf
+    ├── individualProgression.conf
+    └── random_enchants.conf
 ```
 
 说明：
@@ -101,8 +102,9 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - `modules/mod-playerbots/data/sql/characters`
 - `mod-transmog` 模块源码和 `data/sql/db-auth`、`data/sql/db-characters`、`data/sql/db-world`
 - `mod-autobalance` 模块源码和 `conf/AutoBalance.conf.dist`
-- `mod-ah-bot-plus` 模块源码和 `data/sql/db-auth`、`data/sql/db-characters`、`data/sql/db-world`
-- `mod-aoe-loot` 模块源码和 `data/sql/db-auth`、`data/sql/db-characters`、`data/sql/db-world`
+- `mod-learn-spells` 模块源码和 `conf/mod_learnspells.conf.dist`
+- `mod-individual-progression` 模块源码和 `data/sql/auth`、`data/sql/characters`、`data/sql/world`
+- `mod-random-enchants` 模块源码和 `data/sql/db-world`
 
 这些模块的主要用途如下：
 
@@ -112,28 +114,33 @@ bash apps/docker/prepare-bundled-modules.sh modules
   提供幻化系统，支持按装备外观覆盖显示，并可启用收藏外观系统。
 - `mod-autobalance`
   按副本内实际玩家人数自动缩放怪物和 Boss 的生命、伤害等强度，方便单刷或小队挑战多人副本。
-- `mod-ah-bot-plus`
-  提供拍卖行机器人，按配置自动上架、定价、购买和刷新拍卖内容，让 AH 更接近有人持续交易的状态。
-- `mod-aoe-loot`
-  提供范围拾取功能，玩家点击一个尸体时可以一并拾取附近多个尸体的金币和物品。
+- `mod-learn-spells`
+  玩家升级时自动学习可用职业法术，接近后续资料片的升级体验。
+- `mod-individual-progression`
+  按角色记录资料片和副本阶段进度，恢复 Vanilla/TBC/WotLK 的阶段限制、任务、掉落和世界内容。
+- `mod-random-enchants`
+  在拾取、任务奖励、专业制造或队伍 Roll 获得物品时，按概率附加随机附魔。
 
 对应的模块配置文件也都会随镜像安装到 `env/dist/etc/modules/`，因此可以直接通过宿主机卷替换：
 
 - `env/dist/etc/modules/playerbots.conf`
 - `env/dist/etc/modules/transmog.conf`
 - `env/dist/etc/modules/AutoBalance.conf`
-- `env/dist/etc/modules/mod_ahbot.conf`
-- `env/dist/etc/modules/mod_aoe_loot.conf`
+- `env/dist/etc/modules/mod_learnspells.conf`
+- `env/dist/etc/modules/individualProgression.conf`
+- `env/dist/etc/modules/random_enchants.conf`
 
 如果你更喜欢把自定义配置和仓库产物分开管理，也可以把同名文件提前放到 `env/user/modules/`，容器启动时会优先同步过去。
 
 几个实用提醒：
 
-- `mod-ah-bot-plus` 默认 `AuctionHouseBot.EnableSeller = false`，而且必须先在 `mod_ahbot.conf` 里设置至少一个普通玩家角色 GUID 到 `AuctionHouseBot.GUIDs`，拍卖机器人才能开始工作。
 - `mod-autobalance` 主要通过 `AutoBalance.conf` 调参，没有额外独立数据库。
-- `mod-aoe-loot` 的 `AOELoot.Range`、`AOELoot.Group`、`AOELoot.Message` 都可以直接在 `mod_aoe_loot.conf` 中外置调整。
-- `mod-transmog` 的幻化费用、允许的品质、是否启用外观收藏等都在 `transmog.conf` 中配置。
+- `mod-transmog` 的幻化费用、允许的品质、是否启用外观收藏等都在 `transmog.conf` 中配置，配置项前缀是 `Transmogrification.*`。
+- `mod-learn-spells` 主要通过 `mod_learnspells.conf` 控制是否启用、是否登录时补学、最高补学等级。
+- `mod-individual-progression` 会修改世界库内容；如果要完全回退，需要恢复数据库备份，而不是只关闭配置。
+- `mod-random-enchants` 的触发来源和附魔概率在 `random_enchants.conf` 中配置。
 - 镜像启动时会自动兼容一部分模块仓库常见的 `data/sql/db-auth|db-world|db-characters` 目录写法，把它映射成 AzerothCore 自动更新器识别的 `data/sql/auth|world|characters`。
+- 更完整的模块功能和使用方式见 [`DOCKER_BUNDLED_MODULES_CN.md`](./DOCKER_BUNDLED_MODULES_CN.md)。
 
 本地部署时，把生成出来的镜像地址写入根目录 `.env` 里的 `WORLD_IMAGE` 和 `AUTH_IMAGE`。
 
@@ -158,7 +165,7 @@ AC_REALM_ADDRESS=your-public-ip-or-domain
 
 - `AC_DB_PASSWORD` 是唯一必须由用户提供的 AzerothCore 数据库密码。
 - `AC_PLAYERBOTS_DATABASE` 默认是 `acore_playerbots`，通常不需要修改。
-- 这四个新增模块不需要额外新增数据库环境变量；其中带 SQL 的模块会跟随核心 `auth/world/characters` 自动导入。
+- 除 `mod-playerbots` 使用独立的 `AC_PLAYERBOTS_DATABASE` 外，其余打包模块不需要额外新增数据库环境变量；带 SQL 的模块会跟随核心 `auth/world/characters` 自动导入。
 - MySQL `root` 不设置密码。
 - Compose 默认不对宿主机暴露 MySQL 端口，因此 `root` 只在容器网络内可用。
 - 运行镜像使用容器默认 `root` 用户，不再额外创建 `acore` Linux 用户。
@@ -179,7 +186,7 @@ AC_REALM_ADDRESS=your-public-ip-or-domain
 
 1. 把 `Data.zip` 放到 `env/user/Data.zip`。
 2. 如有自定义配置，把 `authserver.conf`、`worldserver.conf` 放到 `env/user/`。
-   如有模块自定义配置，把 `playerbots.conf`、`transmog.conf`、`AutoBalance.conf`、`mod_ahbot.conf`、`mod_aoe_loot.conf` 放到 `env/user/modules/`。
+   如有模块自定义配置，把 `playerbots.conf`、`transmog.conf`、`AutoBalance.conf`、`mod_learnspells.conf`、`individualProgression.conf`、`random_enchants.conf` 放到 `env/user/modules/`。
 3. 拉取镜像：
 
 ```bash
@@ -204,7 +211,7 @@ docker compose up -d
    创建或更新 `acore@'%'` 用户，并把 `.env` 中的 `AC_DB_PASSWORD` 应用进去。
    这一步只覆盖官方数据库安装流程里的“建库、建用户、授权”，不负责 SQL 导入。
 4. `worldserver`
-   在 `AC_DISABLE_INTERACTIVE=1` 下自行执行官方首启 SQL 导入和更新流程，包括 `mod-playerbots`、`mod-transmog`、`mod-ah-bot-plus`、`mod-aoe-loot` 自带的 SQL。
+   在 `AC_DISABLE_INTERACTIVE=1` 下自行执行官方首启 SQL 导入和更新流程，包括 `mod-playerbots`、`mod-transmog`、`mod-individual-progression`、`mod-random-enchants` 自带的 SQL。
    也就是说，核心表结构、基础数据和后续 updates，都是由 `worldserver` 完成。
 5. `authserver`
    等待 `acore_auth.realmlist` 已经导入完成后再启动，并按 `.env` 自动修正 `realmlist` 地址。
