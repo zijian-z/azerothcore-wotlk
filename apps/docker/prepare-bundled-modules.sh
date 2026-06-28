@@ -9,9 +9,11 @@ declare -a MODULE_SPECS=(
     "mod-playerbots|https://github.com/mod-playerbots/mod-playerbots.git|master|conf/playerbots.conf.dist|data/sql/playerbots data/sql/world data/sql/characters"
     "mod-transmog|https://github.com/azerothcore/mod-transmog.git|master|conf/transmog.conf.dist|data/sql/db-auth data/sql/db-characters data/sql/db-world"
     "mod-autobalance|https://github.com/azerothcore/mod-autobalance.git|master|conf/AutoBalance.conf.dist|"
+    "mod-ah-bot|https://github.com/azerothcore/mod-ah-bot.git|master|conf/mod_ahbot.conf.dist|data/sql/db-world"
     "mod-learn-spells|https://github.com/azerothcore/mod-learn-spells.git|master|conf/mod_learnspells.conf.dist|"
     "mod-individual-progression|https://github.com/ZhengPeiRu21/mod-individual-progression.git|master|conf/individualProgression.conf.dist|data/sql/auth data/sql/characters data/sql/world"
     "mod-random-enchants|https://github.com/azerothcore/mod-random-enchants.git|master|conf/random_enchants.conf.dist|data/sql/db-world"
+    "mod-dungeon-master|https://github.com/InstanceForge/mod-dungeon-master.git|main|conf/mod_dungeon_master.conf.dist|data/sql/db-world data/sql/db-characters"
 )
 
 declare -a REMOVED_MODULES=(

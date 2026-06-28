@@ -22,14 +22,18 @@ bash apps/docker/prepare-bundled-modules.sh modules
 | `mod-playerbots` | `https://github.com/mod-playerbots/mod-playerbots.git` | `master` | `playerbots.conf` | `playerbots`、`world`、`characters` |
 | `mod-transmog` | `https://github.com/azerothcore/mod-transmog.git` | `master` | `transmog.conf` | `auth`、`characters`、`world` |
 | `mod-autobalance` | `https://github.com/azerothcore/mod-autobalance.git` | `master` | `AutoBalance.conf` | 无独立 SQL |
+| `mod-ah-bot` | `https://github.com/azerothcore/mod-ah-bot.git` | `master` | `mod_ahbot.conf` | `world` |
 | `mod-learn-spells` | `https://github.com/azerothcore/mod-learn-spells.git` | `master` | `mod_learnspells.conf` | 无独立 SQL |
 | `mod-individual-progression` | `https://github.com/ZhengPeiRu21/mod-individual-progression.git` | `master` | `individualProgression.conf` | `auth`、`characters`、`world` |
 | `mod-random-enchants` | `https://github.com/azerothcore/mod-random-enchants.git` | `master` | `random_enchants.conf` | `world` |
+| `mod-dungeon-master` | `https://github.com/InstanceForge/mod-dungeon-master.git` | `main` | `mod_dungeon_master.conf` | `world`、`characters` |
 
 已经移除的旧模块：
 
 - `mod-ah-bot-plus`
 - `mod-aoe-loot`
+
+这里的 `mod-ah-bot-plus` 是旧的第三方增强版；当前保留并打包的是 AzerothCore 官方 `mod-ah-bot`。
 
 ## 编译和部署方式
 
@@ -52,9 +56,11 @@ bash apps/docker/prepare-bundled-modules.sh modules
 rm -rf modules/mod-playerbots \
        modules/mod-transmog \
        modules/mod-autobalance \
+       modules/mod-ah-bot \
        modules/mod-learn-spells \
        modules/mod-individual-progression \
-       modules/mod-random-enchants
+       modules/mod-random-enchants \
+       modules/mod-dungeon-master
 
 bash apps/docker/prepare-bundled-modules.sh modules
 ```
@@ -76,9 +82,11 @@ env/user/modules/
 ├── playerbots.conf
 ├── transmog.conf
 ├── AutoBalance.conf
+├── mod_ahbot.conf
 ├── mod_learnspells.conf
 ├── individualProgression.conf
-└── random_enchants.conf
+├── random_enchants.conf
+└── mod_dungeon_master.conf
 ```
 
 容器启动时会先复制默认配置，再复制 `env/user/modules/` 里的同名文件，最后自动修正数据库连接、路径等必须由容器托管的字段。
@@ -95,9 +103,11 @@ Linux 文件系统大小写敏感，尤其注意：
 当前模块的数据库行为：
 
 - `mod-playerbots` 会使用独立数据库，默认环境变量是 `AC_PLAYERBOTS_DATABASE=acore_playerbots`。
-- `mod-transmog`、`mod-individual-progression`、`mod-random-enchants` 的 SQL 会随 `worldserver` 自动导入到核心库。
+- `mod-transmog`、`mod-ah-bot`、`mod-individual-progression`、`mod-random-enchants`、`mod-dungeon-master` 的 SQL 会随 `worldserver` 自动导入到核心库。
 - `mod-autobalance`、`mod-learn-spells` 没有独立 SQL。
-- `mod-random-enchants` 使用上游常见的 `data/sql/db-world` 目录，打包脚本会自动创建 `data/sql/world` 兼容链接。
+- `mod-ah-bot` 使用世界库 SQL，导入拍卖行机器人配置表和物品过滤数据。
+- `mod-dungeon-master` 使用世界库和角色库 SQL，导入 Dungeon Master NPC、挑战系统数据和角色挑战记录表。
+- `mod-random-enchants`、`mod-dungeon-master` 等模块使用上游常见的 `data/sql/db-world` / `data/sql/db-characters` 目录，打包脚本会自动创建 `data/sql/world` / `data/sql/characters` 兼容链接。
 
 `mod-individual-progression` 会大量修改世界库内容。关闭配置只会停止运行时代码逻辑，不会撤销已经导入的世界库变更。需要回退时应恢复数据库备份。
 
@@ -215,6 +225,58 @@ env/user/modules/AutoBalance.conf
 - `AutoBalance.PlayerChangeNotify`：玩家人数变化时是否提示。
 - `AutoBalance.LevelScaling`：是否启用等级缩放。
 - `AutoBalance.StatModifier*`：按普通、英雄、团队、Boss 等维度调整属性倍率。
+
+## mod-ah-bot
+
+功能：
+
+- 提供 AzerothCore 官方拍卖行机器人。
+- 可配置为自动上架物品，也可配置为自动竞拍或一口价购买玩家拍卖。
+- 适合低人口服务器维持基础 AH 供给和交易流动性。
+
+配置文件：
+
+```text
+env/dist/etc/modules/mod_ahbot.conf
+env/user/modules/mod_ahbot.conf
+```
+
+基础启用：
+
+1. 准备一个专用普通玩家账号和角色，不建议用真实玩家日常使用的角色。
+2. 查出账号 ID 和角色 GUID，分别写入 `AuctionHouseBot.Account` 和 `AuctionHouseBot.GUID`。
+3. 按需要启用 `AuctionHouseBot.EnableSeller`、`AuctionHouseBot.EnableBuyer`，可以只启用其中一个，也可以两个都启用。
+4. 重启 `worldserver`，让模块按新配置初始化。
+
+常用配置：
+
+- `AuctionHouseBot.EnableSeller`：启用或禁用自动上架。
+- `AuctionHouseBot.EnableBuyer`：启用或禁用自动竞拍/购买。
+- `AuctionHouseBot.Account`：AH Bot 使用的账号 ID。
+- `AuctionHouseBot.GUID`：AH Bot 使用的角色 GUID。
+- `AuctionHouseBot.ItemsPerCycle`：每轮处理的物品数量。
+- `AuctionHouseBot.UseMarketPriceForSeller`：卖家是否参考市场价格。
+- `AuctionHouseBot.VendorItems`、`AuctionHouseBot.LootItems`、`AuctionHouseBot.ProfessionItems`：控制不同来源物品是否进入拍卖池。
+- `AuctionHouseBot.DuplicatesCount`：控制同类物品重复上架数量。
+
+常用命令：
+
+```text
+.ahbotoptions help
+.ahbotoptions buyer 0|1
+.ahbotoptions seller 0|1
+.ahbotoptions usemarketprice 0|1
+.ahbotoptions ahexpire <2|6|7>
+.ahbotoptions minitems <2|6|7> <count>
+.ahbotoptions maxitems <2|6|7> <count>
+```
+
+说明：
+
+- 游戏内使用时通常带 `.`，控制台里使用时不带 `.`。
+- `2`、`6`、`7` 是模块命令使用的拍卖行 ID，分别对应不同阵营/中立拍卖行。
+- 如果只配置 `AuctionHouseBot.Account` 而不配置单个 `GUID`，该账号下的角色可能都参与 AH Bot 行为。
+- 官方 `mod-ah-bot` 和旧的 `mod-ah-bot-plus` 都使用 `mod_ahbot.conf` 文件名。如果旧环境留下的是 Plus 版本配置，不要直接照搬，应该按当前镜像里的 `mod_ahbot.conf.dist` 重新核对配置项。
 
 ## mod-learn-spells
 
@@ -334,6 +396,78 @@ env/user/modules/random_enchants.conf
 - 玩家正常获得物品时，模块按配置概率处理随机附魔。
 - 如果你希望服务器更接近原版体验，应关闭该模块或把概率调低。
 
+## mod-dungeon-master
+
+功能：
+
+- 提供程序化地下城挑战系统。
+- 玩家与 Dungeon Master NPC 交互，选择难度、缩放方式、怪物主题和地下城，然后进入被重新填充怪物和 Boss 的副本。
+- 支持单人或最多 5 人小队，怪物等级和属性会按队伍情况缩放。
+- 支持普通挑战和 Roguelike 连续挑战模式，Roguelike 会逐层提高难度并记录成绩。
+- 模块会记录角色挑战统计、最快通关、Roguelike 层数等数据。
+
+配置文件：
+
+```text
+env/dist/etc/modules/mod_dungeon_master.conf
+env/user/modules/mod_dungeon_master.conf
+```
+
+基础使用：
+
+1. 玩家找到主城里的 Dungeon Master NPC。
+2. 选择普通挑战或 Roguelike Challenge。
+3. 选择难度、是否按队伍缩放、怪物主题和地下城。
+4. 进入副本，清完怪物和 Boss 后领取奖励并传出。
+
+NPC：
+
+- 默认 NPC entry 是 `500000`。
+- 模块 SQL 会在主要主城放置 NPC。
+- GM 也可以在当前位置手动添加：
+
+```text
+.npc add 500000
+```
+
+GM 命令：
+
+```text
+.dm status
+.dm list
+.dm end [id]
+.dm clearcooldown
+.dm reload
+```
+
+说明：
+
+- `.dm status` 查看模块状态和当前活动挑战数量。
+- `.dm list` 列出当前活动挑战。
+- `.dm end [id]` 强制结束指定挑战；不填时通常处理自己的挑战。
+- `.dm clearcooldown` 清除目标所在队伍的挑战冷却。
+- `.dm reload` 热重载 `mod_dungeon_master.conf`。
+
+常用配置：
+
+- `DungeonMaster.Enable`：启用或禁用模块。
+- `DungeonMaster.NpcEntry`：Dungeon Master NPC entry，默认 `500000`。
+- `DungeonMaster.Scaling.LevelBand`：怪物等级选择窗口。
+- `DungeonMaster.Scaling.SoloMultiplier`：单人挑战难度修正。
+- `DungeonMaster.Scaling.PerPlayerHealth` / `DungeonMaster.Scaling.PerPlayerDamage`：额外队员带来的生命和伤害缩放。
+- `DungeonMaster.Scaling.BossHealthMult` / `DungeonMaster.Scaling.BossDamageMult`：Boss 生命和伤害倍率。
+- `DungeonMaster.Dungeon.BossCount`：每次挑战放置的 Boss 数量。
+- `DungeonMaster.Dungeon.EliteChance`：精英怪概率。
+- `DungeonMaster.Cooldown.Minutes`：角色挑战冷却时间。
+- `DungeonMaster.Roguelike.Enable`：启用或禁用 Roguelike 模式。
+- `DungeonMaster.Roguelike.TransitionDelay`：Roguelike 清层后进入下一层的延迟。
+
+运行提醒：
+
+- 该模块上游仍标注为早期开发，建议先在测试库验证副本、奖励和传送流程。
+- 它会导入世界库和角色库 SQL，已有服务器接入前应先备份数据库。
+- 与 `mod-autobalance` 同时启用时，两者都会影响副本体验；如果强度异常，先分别单独测试缩放结果。
+
 ## 变更模块集合后的部署建议
 
 如果你已经用旧模块集合启动过数据库，现在切换到当前模块集合：
@@ -344,16 +478,20 @@ env/user/modules/random_enchants.conf
 4. 删除不再使用的外部覆盖配置：
 
 ```bash
-rm -f env/user/modules/mod_ahbot.conf env/user/modules/mod_aoe_loot.conf
+rm -f env/user/modules/mod_aoe_loot.conf
 ```
 
-5. 按需要添加新模块配置：
+5. 按需要添加或重新核对当前模块配置：
 
 ```text
+env/user/modules/mod_ahbot.conf
 env/user/modules/mod_learnspells.conf
 env/user/modules/individualProgression.conf
 env/user/modules/random_enchants.conf
+env/user/modules/mod_dungeon_master.conf
 ```
+
+如果 `env/user/modules/mod_ahbot.conf` 来自旧的 `mod-ah-bot-plus`，建议先移到备份目录，再基于新镜像里的官方 `mod_ahbot.conf.dist` 重新生成。
 
 6. 拉取并重启：
 
