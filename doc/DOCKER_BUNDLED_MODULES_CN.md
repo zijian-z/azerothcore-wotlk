@@ -13,8 +13,6 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - [`apps/docker/prepare-bundled-modules.sh`](../apps/docker/prepare-bundled-modules.sh)
 - [`.github/workflows/package-server-images.yml`](../.github/workflows/package-server-images.yml)
 
-脚本也会删除已经从固定集合中移除的旧模块目录，避免本地复用 `modules/` 时把旧模块一起编译进去。
-
 ## 当前模块集合
 
 | 模块 | 仓库 | 分支 | 配置文件 | SQL |
@@ -22,18 +20,10 @@ bash apps/docker/prepare-bundled-modules.sh modules
 | `mod-playerbots` | `https://github.com/mod-playerbots/mod-playerbots.git` | `master` | `playerbots.conf` | `playerbots`、`world`、`characters` |
 | `mod-transmog` | `https://github.com/azerothcore/mod-transmog.git` | `master` | `transmog.conf` | `auth`、`characters`、`world` |
 | `mod-autobalance` | `https://github.com/azerothcore/mod-autobalance.git` | `master` | `AutoBalance.conf` | 无独立 SQL |
-| `mod-ah-bot` | `https://github.com/azerothcore/mod-ah-bot.git` | `master` | `mod_ahbot.conf` | `world` |
+| `mod-ah-bot-plus` | `https://github.com/NathanHandley/mod-ah-bot-plus.git` | `master` | `mod_ahbot.conf` | `auth`、`characters`、`world` |
 | `mod-learn-spells` | `https://github.com/azerothcore/mod-learn-spells.git` | `master` | `mod_learnspells.conf` | 无独立 SQL |
-| `mod-individual-progression` | `https://github.com/ZhengPeiRu21/mod-individual-progression.git` | `master` | `individualProgression.conf` | `auth`、`characters`、`world` |
 | `mod-random-enchants` | `https://github.com/azerothcore/mod-random-enchants.git` | `master` | `random_enchants.conf` | `world` |
 | `mod-dungeon-master` | `https://github.com/InstanceForge/mod-dungeon-master.git` | `main` | `mod_dungeon_master.conf` | `world`、`characters` |
-
-已经移除的旧模块：
-
-- `mod-ah-bot-plus`
-- `mod-aoe-loot`
-
-这里的 `mod-ah-bot-plus` 是旧的第三方增强版；当前保留并打包的是 AzerothCore 官方 `mod-ah-bot`。
 
 ## 编译和部署方式
 
@@ -56,9 +46,8 @@ bash apps/docker/prepare-bundled-modules.sh modules
 rm -rf modules/mod-playerbots \
        modules/mod-transmog \
        modules/mod-autobalance \
-       modules/mod-ah-bot \
+       modules/mod-ah-bot-plus \
        modules/mod-learn-spells \
-       modules/mod-individual-progression \
        modules/mod-random-enchants \
        modules/mod-dungeon-master
 
@@ -84,7 +73,6 @@ env/user/modules/
 ├── AutoBalance.conf
 ├── mod_ahbot.conf
 ├── mod_learnspells.conf
-├── individualProgression.conf
 ├── random_enchants.conf
 └── mod_dungeon_master.conf
 ```
@@ -94,7 +82,6 @@ env/user/modules/
 Linux 文件系统大小写敏感，尤其注意：
 
 - `AutoBalance.conf` 必须保留大写 `A` 和 `B`。
-- `individualProgression.conf` 必须保留大写 `P`。
 
 ## 数据库导入
 
@@ -103,13 +90,11 @@ Linux 文件系统大小写敏感，尤其注意：
 当前模块的数据库行为：
 
 - `mod-playerbots` 会使用独立数据库，默认环境变量是 `AC_PLAYERBOTS_DATABASE=acore_playerbots`。
-- `mod-transmog`、`mod-ah-bot`、`mod-individual-progression`、`mod-random-enchants`、`mod-dungeon-master` 的 SQL 会随 `worldserver` 自动导入到核心库。
+- `mod-transmog`、`mod-ah-bot-plus`、`mod-random-enchants`、`mod-dungeon-master` 的 SQL 会随 `worldserver` 自动导入到核心库。
 - `mod-autobalance`、`mod-learn-spells` 没有独立 SQL。
-- `mod-ah-bot` 使用世界库 SQL，导入拍卖行机器人配置表和物品过滤数据。
+- `mod-ah-bot-plus` 使用 auth、characters、world SQL 目录，目前这些目录主要用于模块更新器布局和占位。
 - `mod-dungeon-master` 使用世界库和角色库 SQL，导入 Dungeon Master NPC、挑战系统数据和角色挑战记录表。
 - `mod-random-enchants`、`mod-dungeon-master` 等模块使用上游常见的 `data/sql/db-world` / `data/sql/db-characters` 目录，打包脚本会自动创建 `data/sql/world` / `data/sql/characters` 兼容链接。
-
-`mod-individual-progression` 会大量修改世界库内容。关闭配置只会停止运行时代码逻辑，不会撤销已经导入的世界库变更。需要回退时应恢复数据库备份。
 
 ## mod-playerbots
 
@@ -226,12 +211,14 @@ env/user/modules/AutoBalance.conf
 - `AutoBalance.LevelScaling`：是否启用等级缩放。
 - `AutoBalance.StatModifier*`：按普通、英雄、团队、Boss 等维度调整属性倍率。
 
-## mod-ah-bot
+## mod-ah-bot-plus
 
 功能：
 
-- 提供 AzerothCore 官方拍卖行机器人。
-- 可配置为自动上架物品，也可配置为自动竞拍或一口价购买玩家拍卖。
+- 提供增强版拍卖行机器人。
+- 可配置多个普通角色作为 AH Bot 卖家/买家。
+- 支持自动上架、自动竞拍/购买、快速重载配置、清空机器人拍卖和立即刷新拍卖。
+- 提供更细的价格、堆叠、掉率、分类和高级定价规则。
 - 适合低人口服务器维持基础 AH 供给和交易流动性。
 
 配置文件：
@@ -243,40 +230,39 @@ env/user/modules/mod_ahbot.conf
 
 基础启用：
 
-1. 准备一个专用普通玩家账号和角色，不建议用真实玩家日常使用的角色。
-2. 查出账号 ID 和角色 GUID，分别写入 `AuctionHouseBot.Account` 和 `AuctionHouseBot.GUID`。
-3. 按需要启用 `AuctionHouseBot.EnableSeller`、`AuctionHouseBot.EnableBuyer`，可以只启用其中一个，也可以两个都启用。
-4. 重启 `worldserver`，让模块按新配置初始化。
+1. 准备一个或多个专用普通玩家角色，不建议用真实玩家日常使用的角色，也不要使用 Playerbots 机器人角色。
+2. 查出这些角色在 `characters.characters` 表里的 GUID，写入 `AuctionHouseBot.GUIDs`。
+3. 启用卖家逻辑：`AuctionHouseBot.EnableSeller = true`。
+4. 如需让机器人购买玩家拍卖，再启用买家逻辑：`AuctionHouseBot.Buyer.Enabled = true`。
+5. 重启 `worldserver`，让模块按新配置初始化。
 
 常用配置：
 
 - `AuctionHouseBot.EnableSeller`：启用或禁用自动上架。
-- `AuctionHouseBot.EnableBuyer`：启用或禁用自动竞拍/购买。
-- `AuctionHouseBot.Account`：AH Bot 使用的账号 ID。
-- `AuctionHouseBot.GUID`：AH Bot 使用的角色 GUID。
+- `AuctionHouseBot.Buyer.Enabled`：启用或禁用自动竞拍/购买。
+- `AuctionHouseBot.GUIDs`：AH Bot 使用的角色 GUID 列表。
 - `AuctionHouseBot.ItemsPerCycle`：每轮处理的物品数量。
-- `AuctionHouseBot.UseMarketPriceForSeller`：卖家是否参考市场价格。
-- `AuctionHouseBot.VendorItems`、`AuctionHouseBot.LootItems`、`AuctionHouseBot.ProfessionItems`：控制不同来源物品是否进入拍卖池。
-- `AuctionHouseBot.DuplicatesCount`：控制同类物品重复上架数量。
+- `AuctionHouseBot.ReturnExpiredAuctionItemsToBot`：机器人拍卖过期后是否把物品退回机器人。
+- `AuctionHouseBot.MaxBuyoutPriceInCopper`：限制机器人可处理的一口价上限。
+- `AuctionHouseBot.AdvancedListingRules.UseDropRates.Enabled`：是否按掉率规则筛选上架物品。
+- `AuctionHouseBot.ListProportion.*`：控制不同分类和品质的上架比例。
+- `AuctionHouseBot.PriceMultiplier.*`：按分类、品质、物品等级等规则调整价格。
+- `AuctionHouseBot.ListingStack.*`：控制堆叠数量和堆叠随机规则。
 
 常用命令：
 
 ```text
-.ahbotoptions help
-.ahbotoptions buyer 0|1
-.ahbotoptions seller 0|1
-.ahbotoptions usemarketprice 0|1
-.ahbotoptions ahexpire <2|6|7>
-.ahbotoptions minitems <2|6|7> <count>
-.ahbotoptions maxitems <2|6|7> <count>
+.ahbot reload
+.ahbot empty
+.ahbot update
 ```
 
 说明：
 
-- 游戏内使用时通常带 `.`，控制台里使用时不带 `.`。
-- `2`、`6`、`7` 是模块命令使用的拍卖行 ID，分别对应不同阵营/中立拍卖行。
-- 如果只配置 `AuctionHouseBot.Account` 而不配置单个 `GUID`，该账号下的角色可能都参与 AH Bot 行为。
-- 官方 `mod-ah-bot` 和旧的 `mod-ah-bot-plus` 都使用 `mod_ahbot.conf` 文件名。如果旧环境留下的是 Plus 版本配置，不要直接照搬，应该按当前镜像里的 `mod_ahbot.conf.dist` 重新核对配置项。
+- `.ahbot reload` 重新加载 `mod_ahbot.conf`。
+- `.ahbot empty` 清空所有 AH Bot 拍卖，不影响玩家拍卖；已有出价会退还给玩家。
+- `.ahbot update` 立即触发一次拍卖刷新或补货。
+- 默认每个 tick 只上架一部分物品，拍卖行完全铺满需要一些时间；可以通过 `AuctionHouseBot.ItemsPerCycle` 调整。
 
 ## mod-learn-spells
 
@@ -304,66 +290,6 @@ env/user/modules/mod_learnspells.conf
 - 启用后无需玩家命令。
 - 玩家升级时自动学习可用法术。
 - 如果是瞬升或已有角色，建议按需要启用 `LearnSpells.OnFirstLogin`。
-
-## mod-individual-progression
-
-功能：
-
-- 按角色保存个人进度，模拟 Vanilla、TBC、WotLK 各阶段逐步推进。
-- 恢复部分被后续版本移除、削弱或延后开放的任务、NPC、掉落、副本入口和阶段限制。
-- 支持旧 Naxxramas、Onyxia、TBC 开门/钥匙任务、Vanilla AV、奎岛阶段等内容。
-- 可与 Playerbots 搭配，用机器人辅助推进阶段内容。
-
-配置文件：
-
-```text
-env/dist/etc/modules/individualProgression.conf
-env/user/modules/individualProgression.conf
-```
-
-关键要求：
-
-- 该模块需要保存 Player Settings。默认 `IndividualProgression.SimpleConfigOverride = 1` 会尝试自动设置必要核心配置。
-- 如果你关闭 `SimpleConfigOverride`，需要自行确保 `worldserver.conf` 中启用 Player Settings，并设置 `DBC.EnforceItemAttributes = 0`，否则个人进度和物品覆盖可能不符合预期。
-
-常用命令：
-
-```text
-.ip get [$player]
-.ip set [$player] <progressionLevel>
-.ip setbot
-.ip tele [$player] <location>
-.ip setrep
-.ip pvp [$player]
-.ip attune <location>
-```
-
-说明：
-
-- `.ip get` 查看自己、目标或指定玩家的进度等级。
-- `.ip set` 设置玩家进度等级，通常只应由 GM 排障或活动管理时使用。
-- `.ip setbot` 把队伍内机器人设置到你的进度等级。
-- `.ip tele`、`.ip setrep`、`.ip pvp`、`.ip attune` 是进度相关管理命令，使用前建议先在测试服验证。
-
-常用配置：
-
-- `IndividualProgression.Enable`：启用或禁用运行时代码逻辑。
-- `IndividualProgression.EnforceGroupRules`：是否只允许同阶段玩家组队。
-- `IndividualProgression.ProgressionLimit`：限制最高可达到的进度阶段。
-- `IndividualProgression.StartingProgression`：设置新角色或低阶段角色的起始进度阶段。
-- `IndividualProgression.VanillaPowerAdjustment` / `VanillaHealingAdjustment`：调整 Vanilla 阶段输出和治疗。
-- `IndividualProgression.TBCPowerAdjustment` / `TBCHealingAdjustment`：调整 TBC 阶段输出和治疗。
-- `IndividualProgression.DisableRDF`：按进度模块语义控制随机地下城查找器。
-
-可选资源：
-
-- 模块仓库的 `optional/` 目录包含可选 DBC、客户端 patch 和可选 SQL。
-- 本仓库打包脚本只打包模块本体；是否使用可选客户端 patch 或额外 SQL，需要你按模块上游说明单独评估。
-
-风险提醒：
-
-- 该模块对世界库改动范围很大，建议新服启用。
-- 已经运行过一段时间的生产库接入前，应先完整备份 `auth/world/characters/playerbots` 数据库。
 
 ## mod-random-enchants
 
@@ -465,39 +391,5 @@ GM 命令：
 运行提醒：
 
 - 该模块上游仍标注为早期开发，建议先在测试库验证副本、奖励和传送流程。
-- 它会导入世界库和角色库 SQL，已有服务器接入前应先备份数据库。
+- 它会导入世界库和角色库 SQL。
 - 与 `mod-autobalance` 同时启用时，两者都会影响副本体验；如果强度异常，先分别单独测试缩放结果。
-
-## 变更模块集合后的部署建议
-
-如果你已经用旧模块集合启动过数据库，现在切换到当前模块集合：
-
-1. 先备份数据库和 `env/dist/etc/modules`。
-2. 重新运行 `package-server-images` 打包并推送新镜像。
-3. 更新 `.env` 中的 `WORLD_IMAGE` 和 `AUTH_IMAGE`。
-4. 删除不再使用的外部覆盖配置：
-
-```bash
-rm -f env/user/modules/mod_aoe_loot.conf
-```
-
-5. 按需要添加或重新核对当前模块配置：
-
-```text
-env/user/modules/mod_ahbot.conf
-env/user/modules/mod_learnspells.conf
-env/user/modules/individualProgression.conf
-env/user/modules/random_enchants.conf
-env/user/modules/mod_dungeon_master.conf
-```
-
-如果 `env/user/modules/mod_ahbot.conf` 来自旧的 `mod-ah-bot-plus`，建议先移到备份目录，再基于新镜像里的官方 `mod_ahbot.conf.dist` 重新生成。
-
-6. 拉取并重启：
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-如果是新服，推荐从空数据库启动，让 `worldserver` 一次性导入核心 SQL 和当前模块 SQL。这样比在已有旧模块库上叠加大范围进度模块更容易排障。
