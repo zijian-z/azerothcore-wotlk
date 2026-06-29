@@ -10,13 +10,13 @@ declare -a MODULE_SPECS=(
     "mod-transmog|https://github.com/azerothcore/mod-transmog.git|master|conf/transmog.conf.dist|data/sql/db-auth data/sql/db-characters data/sql/db-world"
     "mod-autobalance|https://github.com/azerothcore/mod-autobalance.git|master|conf/AutoBalance.conf.dist|"
     "mod-ah-bot-plus|https://github.com/NathanHandley/mod-ah-bot-plus.git|master|conf/mod_ahbot.conf.dist|data/sql/db-auth data/sql/db-characters data/sql/db-world"
+    "mod-aoe-loot|https://github.com/azerothcore/mod-aoe-loot.git|master|conf/mod_aoe_loot.conf.dist|"
     "mod-learn-spells|https://github.com/azerothcore/mod-learn-spells.git|master|conf/mod_learnspells.conf.dist|"
     "mod-random-enchants|https://github.com/azerothcore/mod-random-enchants.git|master|conf/random_enchants.conf.dist|data/sql/db-world"
 )
 
 declare -a REMOVED_MODULES=(
     "mod-ah-bot"
-    "mod-aoe-loot"
     "mod-individual-progression"
 )
 

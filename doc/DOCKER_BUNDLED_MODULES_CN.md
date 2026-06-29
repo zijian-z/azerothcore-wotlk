@@ -21,6 +21,7 @@ bash apps/docker/prepare-bundled-modules.sh modules
 | `mod-transmog` | `https://github.com/azerothcore/mod-transmog.git` | `master` | `transmog.conf` | `auth`、`characters`、`world` |
 | `mod-autobalance` | `https://github.com/azerothcore/mod-autobalance.git` | `master` | `AutoBalance.conf` | 无独立 SQL |
 | `mod-ah-bot-plus` | `https://github.com/NathanHandley/mod-ah-bot-plus.git` | `master` | `mod_ahbot.conf` | `auth`、`characters`、`world` |
+| `mod-aoe-loot` | `https://github.com/azerothcore/mod-aoe-loot.git` | `master` | `mod_aoe_loot.conf` | 无独立 SQL |
 | `mod-learn-spells` | `https://github.com/azerothcore/mod-learn-spells.git` | `master` | `mod_learnspells.conf` | 无独立 SQL |
 | `mod-random-enchants` | `https://github.com/azerothcore/mod-random-enchants.git` | `master` | `random_enchants.conf` | `world` |
 
@@ -46,6 +47,7 @@ rm -rf modules/mod-playerbots \
        modules/mod-transmog \
        modules/mod-autobalance \
        modules/mod-ah-bot-plus \
+       modules/mod-aoe-loot \
        modules/mod-learn-spells \
        modules/mod-random-enchants
 
@@ -70,6 +72,7 @@ env/user/modules/
 ├── transmog.conf
 ├── AutoBalance.conf
 ├── mod_ahbot.conf
+├── mod_aoe_loot.conf
 ├── mod_learnspells.conf
 └── random_enchants.conf
 ```
@@ -88,7 +91,7 @@ Linux 文件系统大小写敏感，尤其注意：
 
 - `mod-playerbots` 会使用独立数据库，默认环境变量是 `AC_PLAYERBOTS_DATABASE=acore_playerbots`。
 - `mod-transmog`、`mod-ah-bot-plus`、`mod-random-enchants` 的 SQL 会随 `worldserver` 自动导入到核心库。
-- `mod-autobalance`、`mod-learn-spells` 没有独立 SQL。
+- `mod-autobalance`、`mod-aoe-loot`、`mod-learn-spells` 没有独立模块 SQL。
 - `mod-ah-bot-plus` 使用 `db-auth`、`db-characters`、`db-world` SQL 目录，目前这些目录主要用于模块更新器布局和占位。
 - `mod-random-enchants` 等模块使用上游常见的 `data/sql/db-world` / `data/sql/db-characters` 目录，AzerothCore 自动更新器会直接识别这些目录。打包脚本不会再创建 `data/sql/world` / `data/sql/characters` 兼容链接，避免同一个 SQL 文件被重复扫描。
 
@@ -259,6 +262,33 @@ env/user/modules/mod_ahbot.conf
 - `.ahbot empty` 清空所有 AH Bot 拍卖，不影响玩家拍卖；已有出价会退还给玩家。
 - `.ahbot update` 立即触发一次拍卖刷新或补货。
 - 默认每个 tick 只上架一部分物品，拍卖行完全铺满需要一些时间；可以通过 `AuctionHouseBot.ItemsPerCycle` 调整。
+
+## mod-aoe-loot
+
+功能：
+
+- 提供范围拾取功能，玩家点击一个尸体时，可以把附近可拾取尸体的金币和物品合并到同一个拾取窗口。
+- 支持配置拾取半径，以及是否允许组队状态下使用范围拾取。
+- 适合直接作为服务器默认体验启用，减少逐个拾取尸体的操作。
+
+配置文件：
+
+```text
+env/dist/etc/modules/mod_aoe_loot.conf
+env/user/modules/mod_aoe_loot.conf
+```
+
+常用配置：
+
+- `AOELoot.Enable`：全局启用或禁用模块。
+- `AOELoot.Message`：玩家登录时是否显示模块提示；如果不需要玩家侧提示，可以设为 `0`。
+- `AOELoot.Range`：范围拾取搜索半径，默认 `55.0`，模块会限制在 `5.0` 到 `100.0` 之间。
+- `AOELoot.Group`：玩家处于队伍中时是否允许范围拾取。
+
+运行提醒：
+
+- 模块没有独立 SQL 目录，不需要额外数据库环境变量。
+- 如果范围拾取后尸体停留时间太长，可以在 `worldserver.conf` 中把 `Rate.Corpse.Decay.Looted` 调低，例如 `0.01`。
 
 ## mod-learn-spells
 

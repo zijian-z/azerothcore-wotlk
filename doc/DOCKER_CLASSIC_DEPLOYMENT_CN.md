@@ -52,6 +52,7 @@ env/user/
     ├── transmog.conf
     ├── AutoBalance.conf
     ├── mod_ahbot.conf
+    ├── mod_aoe_loot.conf
     ├── mod_learnspells.conf
     └── random_enchants.conf
 ```
@@ -105,6 +106,7 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - `mod-transmog` 模块源码和 `data/sql/db-auth`、`data/sql/db-characters`、`data/sql/db-world`
 - `mod-autobalance` 模块源码和 `conf/AutoBalance.conf.dist`
 - `mod-ah-bot-plus` 模块源码和 `data/sql/db-auth`、`data/sql/db-characters`、`data/sql/db-world`
+- `mod-aoe-loot` 模块源码和 `conf/mod_aoe_loot.conf.dist`
 - `mod-learn-spells` 模块源码和 `conf/mod_learnspells.conf.dist`
 - `mod-random-enchants` 模块源码和 `data/sql/db-world`
 
@@ -118,6 +120,8 @@ bash apps/docker/prepare-bundled-modules.sh modules
   按副本内实际玩家人数自动缩放怪物和 Boss 的生命、伤害等强度，方便单刷或小队挑战多人副本。
 - `mod-ah-bot-plus`
   增强版拍卖行机器人模块，可按配置自动上架物品、参与竞拍，并支持重载、清空机器人拍卖和立即刷新。
+- `mod-aoe-loot`
+  提供范围拾取功能，玩家点击一个尸体时可合并拾取附近可拾取尸体的金币和物品。
 - `mod-learn-spells`
   玩家升级时自动学习可用职业法术，接近后续资料片的升级体验。
 - `mod-random-enchants`
@@ -129,6 +133,7 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - `env/dist/etc/modules/transmog.conf`
 - `env/dist/etc/modules/AutoBalance.conf`
 - `env/dist/etc/modules/mod_ahbot.conf`
+- `env/dist/etc/modules/mod_aoe_loot.conf`
 - `env/dist/etc/modules/mod_learnspells.conf`
 - `env/dist/etc/modules/random_enchants.conf`
 
@@ -139,6 +144,7 @@ bash apps/docker/prepare-bundled-modules.sh modules
 - `mod-autobalance` 主要通过 `AutoBalance.conf` 调参，没有额外独立数据库。
 - `mod-ah-bot-plus` 默认需要先在 `AuctionHouseBot.GUIDs` 填入一个或多个普通角色 GUID，再启用 `AuctionHouseBot.EnableSeller`；买家逻辑通过 `AuctionHouseBot.Buyer.Enabled` 控制。
 - `mod-transmog` 的幻化费用、允许的品质、是否启用外观收藏等都在 `transmog.conf` 中配置，配置项前缀是 `Transmogrification.*`。
+- `mod-aoe-loot` 主要通过 `mod_aoe_loot.conf` 控制是否启用、范围拾取半径和组队时是否允许范围拾取。
 - `mod-learn-spells` 主要通过 `mod_learnspells.conf` 控制是否启用、是否登录时补学、最高补学等级。
 - `mod-random-enchants` 的触发来源和附魔概率在 `random_enchants.conf` 中配置。
 - AzerothCore 自动更新器会直接识别模块仓库常见的 `data/sql/db-auth|db-world|db-characters` 目录写法；镜像启动时只会清理旧版打包留下的 `auth|world|characters -> db-*` 兼容链接，避免同一个 SQL 文件被重复扫描。
@@ -188,7 +194,7 @@ AC_REALM_ADDRESS=your-public-ip-or-domain
 
 1. 把 `Data.zip` 放到 `env/user/Data.zip`。
 2. 如有自定义配置，把 `authserver.conf`、`worldserver.conf` 放到 `env/user/`。
-   如有模块自定义配置，把 `playerbots.conf`、`transmog.conf`、`AutoBalance.conf`、`mod_ahbot.conf`、`mod_learnspells.conf`、`random_enchants.conf` 放到 `env/user/modules/`。
+   如有模块自定义配置，把 `playerbots.conf`、`transmog.conf`、`AutoBalance.conf`、`mod_ahbot.conf`、`mod_aoe_loot.conf`、`mod_learnspells.conf`、`random_enchants.conf` 放到 `env/user/modules/`。
 3. 拉取镜像：
 
 ```bash
